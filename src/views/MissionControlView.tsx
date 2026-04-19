@@ -94,8 +94,26 @@ const MissionControlView: React.FC = () => {
   const handleLaunchMission = async () => {
     if (!brief.trim() || isMissionRunning) return;
     setIsMissionRunning(true);
+    const missionBrief = brief.trim();
+    setBrief('');
     try {
-      await agentService.startMission({ brief: brief.trim(), mode });
+      const response = await agentService.startMission({ brief: missionBrief, mode });
+      if (response.result) {
+        setEvents(prev => [...prev, {
+          type: 'message',
+          agent: 'Boss',
+          content: `Mission complete:\n\n${response.result}`,
+          timestamp: new Date().toISOString(),
+        }]);
+      }
+      if (response.error) {
+        setEvents(prev => [...prev, {
+          type: 'error',
+          agent: 'System',
+          content: `Mission error: ${response.error}`,
+          timestamp: new Date().toISOString(),
+        }]);
+      }
     } catch (err) {
       setEvents(prev => [...prev, {
         type: 'error',
@@ -105,7 +123,6 @@ const MissionControlView: React.FC = () => {
       }]);
     } finally {
       setIsMissionRunning(false);
-      setBrief('');
     }
   };
 
