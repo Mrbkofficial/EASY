@@ -87,9 +87,7 @@ class MissionCrew:
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.run_coroutine_threadsafe(self.broadcast_fn(msg), loop)
+            self.broadcast_fn(msg)
         except Exception:
             pass
 

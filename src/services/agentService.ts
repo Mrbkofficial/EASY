@@ -1,60 +1,51 @@
 import { AgentEvent, AgentState, AgentName, MissionRequest } from '../types';
-import { WS_URL, API_URL } from '../constants';
+import { API_URL } from '../constants';
 
 type EventCallback = (event: AgentEvent) => void;
-type StateCallback = (states: Record<AgentName, AgentState>) => void;
 
 class AgentService {
-  private ws: WebSocket | null = null;
   private eventListeners: EventCallback[] = [];
-  private stateListeners: StateCallback[] = [];
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private isConnected = false;
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private latestSeq = 0;
+  private _connected = false;
 
   connect() {
-    const state = this.ws?.readyState;
-    if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) return;
-    try {
-      this.ws = new WebSocket(WS_URL);
-      this.ws.onopen = () => {
-        this.isConnected = true;
-        this.broadcast({ type: 'system', agent: 'System', content: 'Connected to Mission Control', timestamp: new Date().toISOString() });
-      };
-      this.ws.onmessage = (event) => {
-        try {
-          const data: AgentEvent = JSON.parse(event.data);
-          this.eventListeners.forEach(cb => cb(data));
-        } catch { /* ignore malformed messages */ }
-      };
-      this.ws.onclose = () => {
-        this.isConnected = false;
-        this.broadcast({ type: 'system', agent: 'System', content: 'Disconnected. Reconnecting...', timestamp: new Date().toISOString() });
-        this.reconnectTimer = setTimeout(() => this.connect(), 3000);
-      };
-      this.ws.onerror = () => {
-        this.isConnected = false;
-      };
-    } catch {
-      this.scheduleReconnect();
-    }
+    if (this.pollTimer) return;
+    this._connected = true;
+    this.broadcast({
+      type: 'system',
+      agent: 'System',
+      content: 'Agent Hub connected. Agents T, A, and The Boss are online.',
+      timestamp: new Date().toISOString(),
+    });
+    // Poll for events every 2 seconds
+    this.pollTimer = setInterval(() => this.pollEvents(), 2000);
+    this.pollEvents(); // fetch immediately on connect
   }
 
-  private scheduleReconnect() {
-    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    this.reconnectTimer = setTimeout(() => this.connect(), 3000);
+  disconnect() {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+    this._connected = false;
+  }
+
+  private async pollEvents() {
+    try {
+      const res = await fetch(`${API_URL}/api/events?since_seq=${this.latestSeq}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const events: (AgentEvent & { _seq?: number })[] = data.events ?? [];
+      if (data.latest_seq > this.latestSeq) this.latestSeq = data.latest_seq;
+      events.forEach(({ _seq: _s, ...event }) => this.broadcast(event as AgentEvent));
+    } catch {
+      // ignore transient network errors
+    }
   }
 
   private broadcast(event: AgentEvent) {
     this.eventListeners.forEach(cb => cb(event));
-  }
-
-  disconnect() {
-    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    if (this.ws) {
-      this.ws.onclose = null; // prevent reconnect loop on intentional disconnect
-      this.ws.close();
-      this.ws = null;
-    }
   }
 
   onEvent(cb: EventCallback) {
@@ -62,14 +53,13 @@ class AgentService {
     return () => { this.eventListeners = this.eventListeners.filter(l => l !== cb); };
   }
 
-  onStateUpdate(cb: StateCallback) {
-    this.stateListeners.push(cb);
-    return () => { this.stateListeners = this.stateListeners.filter(l => l !== cb); };
+  onStateUpdate(_cb: (states: Record<AgentName, AgentState>) => void) {
+    return () => {};
   }
 
-  get connected() { return this.isConnected; }
+  get connected() { return this._connected; }
 
-  async startMission(request: MissionRequest): Promise<{ status: string; result?: string }> {
+  async startMission(request: MissionRequest): Promise<{ status: string; result?: string; error?: string }> {
     const res = await fetch(`${API_URL}/api/mission/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
