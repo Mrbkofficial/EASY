@@ -7,9 +7,10 @@ import PricingView from './views/PricingView';
 import LoginView from './views/LoginView';
 import ProfileView from './views/ProfileView';
 import MissionControlView from './views/MissionControlView';
+import ReportsView from './views/ReportsView';
 import { User } from './types';
 
-type View = 'home' | 'projects' | 'pricing' | 'profile' | 'mission';
+type View = 'home' | 'projects' | 'pricing' | 'profile' | 'mission' | 'reports';
 
 const App: React.FC = () => {
   const [users, setUsers] = useState<Record<string, User>>(() => {
@@ -66,6 +67,7 @@ const App: React.FC = () => {
       case 'pricing':  return <PricingView user={currentUser} onUpdateUser={handleUpdateUser} />;
       case 'profile':  return <ProfileView user={currentUser} onUpdateUser={handleUpdateUser} />;
       case 'mission':  return <MissionControlView />;
+      case 'reports':  return <ReportsView />;
       default:         return <HomeView user={currentUser} onUpdateUser={handleUpdateUser} setView={setCurrentView} />;
     }
   };

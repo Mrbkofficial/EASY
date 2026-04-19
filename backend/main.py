@@ -19,6 +19,7 @@ executor = ThreadPoolExecutor(max_workers=4)
 
 _event_store: list[dict] = []
 _event_seq: int = 0
+_missions_store: list[dict] = []
 
 
 def _store_event(event: dict):
@@ -125,15 +126,36 @@ async def start_mission(request: MissionRequest):
         crew = MissionCrew(broadcast_fn=broadcast_sync)
         return crew.run_mission(brief=request.brief, mode=request.mode)
 
+    mission_record: dict = {
+        "id": f"mission-{len(_missions_store)+1}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+        "brief": request.brief,
+        "mode": request.mode,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "status": "running",
+        "result": None,
+        "error": None,
+    }
+    _missions_store.append(mission_record)
+
     try:
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(executor, _run_crew)
-        _store_event(_system_event(f"Mission complete.", "system"))
+        mission_record["status"] = "completed"
+        mission_record["result"] = str(result)[:8000]
+        _store_event(_system_event("Mission complete.", "system"))
         return MissionResponse(status="completed", result=str(result)[:2000])
     except Exception as e:
         error_msg = str(e)
+        mission_record["status"] = "error"
+        mission_record["error"] = error_msg
         _store_event(_system_event(f"Mission failed: {error_msg}", "error"))
         return MissionResponse(status="error", error=error_msg)
+
+
+@app.get("/api/missions")
+async def list_missions():
+    """Return all past missions newest first."""
+    return {"missions": list(reversed(_missions_store))}
 
 
 @app.post("/api/mission/stop")
