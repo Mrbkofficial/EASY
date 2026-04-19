@@ -50,8 +50,11 @@ class AgentService {
 
   disconnect() {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    this.ws?.close();
-    this.ws = null;
+    if (this.ws) {
+      this.ws.onclose = null; // prevent reconnect loop on intentional disconnect
+      this.ws.close();
+      this.ws = null;
+    }
   }
 
   onEvent(cb: EventCallback) {
