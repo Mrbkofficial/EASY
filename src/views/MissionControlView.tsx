@@ -74,13 +74,21 @@ const MissionControlView: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    agentService.connect();
-    return () => { agentService.disconnect(); };
-  }, []);
-
-  useEffect(() => {
     const unsub = agentService.onEvent(handleEvent);
-    return unsub;
+    agentService.connect();
+    // Mark as live immediately and set agents idle
+    setWsConnected(true);
+    setAgentStates(prev => {
+      const next = { ...prev };
+      (['T', 'A', 'Boss'] as AgentName[]).forEach(n => {
+        next[n] = { ...next[n], status: 'idle' };
+      });
+      return next;
+    });
+    return () => {
+      unsub();
+      agentService.disconnect();
+    };
   }, [handleEvent]);
 
   const handleLaunchMission = async () => {
