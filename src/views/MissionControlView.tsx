@@ -29,13 +29,6 @@ const MissionControlView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'feed' | 'tasks'>('feed');
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const updateAgentState = useCallback((agentName: AgentName, patch: Partial<AgentState>) => {
-    setAgentStates(prev => ({
-      ...prev,
-      [agentName]: { ...prev[agentName], ...patch },
-    }));
-  }, []);
-
   const handleEvent = useCallback((event: AgentEvent) => {
     setEvents(prev => [...prev.slice(-200), event]);
 
@@ -56,7 +49,7 @@ const MissionControlView: React.FC = () => {
     const agentName = event.agent as AgentName;
 
     if (event.type === 'task_start') {
-      updateAgentState(agentName, { status: 'working', currentTask: event.task || event.content, lastActivity: new Date(event.timestamp).toLocaleTimeString() });
+      setAgentStates(prev => ({ ...prev, [agentName]: { ...prev[agentName as AgentName], status: 'working', currentTask: event.task || event.content, lastActivity: new Date(event.timestamp).toLocaleTimeString() } }));
       if (event.task) {
         setTasks(prev => [...prev, {
           id: `${Date.now()}-${Math.random()}`,
@@ -67,12 +60,7 @@ const MissionControlView: React.FC = () => {
         }]);
       }
     } else if (event.type === 'task_complete') {
-      updateAgentState(agentName, {
-        status: 'completed',
-        currentTask: '',
-        tasksCompleted: (agentStates[agentName]?.tasksCompleted ?? 0) + 1,
-        lastActivity: new Date(event.timestamp).toLocaleTimeString(),
-      });
+      setAgentStates(prev => ({ ...prev, [agentName]: { ...prev[agentName as AgentName], status: 'completed', currentTask: '', tasksCompleted: (prev[agentName as AgentName]?.tasksCompleted ?? 0) + 1, lastActivity: new Date(event.timestamp).toLocaleTimeString() } }));
       if (event.task) {
         setTasks(prev => prev.map(t =>
           t.description === event.task && t.agent === agentName
@@ -81,20 +69,18 @@ const MissionControlView: React.FC = () => {
         ));
       }
     } else if (event.type === 'status_update') {
-      updateAgentState(agentName, {
-        status: event.content.includes('idle') ? 'idle' : 'working',
-        lastActivity: new Date(event.timestamp).toLocaleTimeString(),
-      });
+      setAgentStates(prev => ({ ...prev, [agentName]: { ...prev[agentName as AgentName], status: event.content.includes('idle') ? 'idle' : 'working', lastActivity: new Date(event.timestamp).toLocaleTimeString() } }));
     }
-  }, [agentStates, updateAgentState]);
+  }, []);
 
   useEffect(() => {
     agentService.connect();
+    return () => { agentService.disconnect(); };
+  }, []);
+
+  useEffect(() => {
     const unsub = agentService.onEvent(handleEvent);
-    return () => {
-      unsub();
-      agentService.disconnect();
-    };
+    return unsub;
   }, [handleEvent]);
 
   const handleLaunchMission = async () => {
