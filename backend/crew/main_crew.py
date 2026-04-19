@@ -92,10 +92,20 @@ class MissionCrew:
             pass
 
     def _web_search(self, query: str) -> str:
+        import ssl
+        import urllib3
+        urllib3.disable_warnings()
+        ssl._create_default_https_context = ssl._create_unverified_context
         try:
             from duckduckgo_search import DDGS
-            with DDGS() as ddgs:
-                results = list(ddgs.text(query, max_results=5))
+            # Try with verify=False first (newer duckduckgo-search versions)
+            try:
+                with DDGS(verify=False) as ddgs:
+                    results = list(ddgs.text(query, max_results=5))
+            except TypeError:
+                # Older version — no verify param
+                with DDGS() as ddgs:
+                    results = list(ddgs.text(query, max_results=5))
             if not results:
                 return "No results found."
             return "\n\n".join(
@@ -109,7 +119,8 @@ class MissionCrew:
         try:
             import requests
             from bs4 import BeautifulSoup
-            resp = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+            resp = requests.get(url, timeout=10, verify=False,
+                                headers={"User-Agent": "Mozilla/5.0"})
             soup = BeautifulSoup(resp.text, "lxml")
             for tag in soup(["script", "style", "nav", "footer", "header"]):
                 tag.decompose()
