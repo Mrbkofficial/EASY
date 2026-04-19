@@ -12,7 +12,8 @@ class AgentService {
   private isConnected = false;
 
   connect() {
-    if (this.ws?.readyState === WebSocket.OPEN) return;
+    const state = this.ws?.readyState;
+    if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) return;
     try {
       this.ws = new WebSocket(WS_URL);
       this.ws.onopen = () => {
