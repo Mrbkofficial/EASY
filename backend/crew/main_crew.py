@@ -1,145 +1,272 @@
-"""CrewAI crew orchestration — wires T, A, and The Boss together."""
-import os
+"""EASY Agent Hub — Mission Crew using Anthropic SDK directly (no crewai required)."""
 import asyncio
-from typing import Callable, Any
-from crewai import Crew, Task, Process, LLM
-from agents import create_t_agent, create_a_agent, create_boss_agent
+import json
+import os
+from datetime import datetime, timezone
+from typing import Any, Callable, Optional
+
+import anthropic
 
 
-TASK_TEMPLATES = {
-    "ideate": {
-        "a_task": "Research current trends relevant to: {brief}. Use Google Trends, Reddit, and news search. Write a structured trend brief with top 5 insights and opportunities.",
-        "t_task": "Based on A's trend research, generate 3 original product/service ideas for: {brief}. For each idea include: name, target user, core value prop, key features, and why now.",
-        "boss_task": "Review T's ideas and A's research for: {brief}. Select the strongest idea, refine it, create a 1-page concept brief saved to the workspace, and send the user a Mac notification with the result.",
+TOOLS = [
+    {
+        "name": "web_search",
+        "description": "Search the web for current information, news, trends, or any topic.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "The search query."}
+            },
+            "required": ["query"],
+        },
     },
-    "research": {
-        "a_task": "Deep-dive research on: {brief}. Use all available tools — web search, Google Trends, Reddit, Twitter, news. Produce a comprehensive research report covering: market size, key players, trends, opportunities, threats.",
-        "boss_task": "Take A's research on: {brief}. Synthesise it into a polished executive briefing document and a presentation deck. Save both to workspace and notify the user.",
+    {
+        "name": "scrape_url",
+        "description": "Fetch and read the text content of a web page URL.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "The full URL to fetch."}
+            },
+            "required": ["url"],
+        },
     },
-    "create": {
-        "t_task": "Design the creative concept for: {brief}. Define the visual direction, messaging, key assets needed, and user experience flow.",
-        "boss_task": "Using T's creative concept for: {brief}, build the actual deliverables: create a presentation deck, write the copy, save all files to workspace, and notify the user when done.",
+    {
+        "name": "get_trends",
+        "description": "Get Google Trends data showing interest over time for keywords.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "keywords": {
+                    "type": "string",
+                    "description": "Comma-separated keywords to check trends for, e.g. 'AI,design,technology'.",
+                }
+            },
+            "required": ["keywords"],
+        },
     },
-    "manage": {
-        "a_task": "Research and gather all background information needed for: {brief}. Cover market context, competitor landscape, trends, and audience insights.",
-        "t_task": "Taking A's research for: {brief}, develop the full creative strategy and product/concept design. Be comprehensive.",
-        "boss_task": "Orchestrate the full project for: {brief}. Synthesise T and A's work, create the complete deliverable package (deck + report + brief), organise the workspace, and send a summary notification to the user.",
-    },
+]
+
+AGENT_SYSTEMS = {
+    "T": (
+        "You are Agent T — Idea Creator and Product Designer for EASY Agent Hub. "
+        "Your role: generate innovative product/service concepts, design thinking, creative direction. "
+        "Use web_search to research inspiration, trends, and validate ideas. "
+        "Be creative, specific, and actionable. Format your output clearly with headers."
+    ),
+    "A": (
+        "You are Agent A — Adventurous Researcher and Trend Hunter for EASY Agent Hub. "
+        "Your role: research markets, track trends, analyze competitors, find data-driven insights. "
+        "Use web_search and get_trends to gather real, current information. "
+        "Be thorough and cite specific findings. Format your output as a structured report."
+    ),
+    "Boss": (
+        "You are The Boss — Creative Director and Team Manager for EASY Agent Hub. "
+        "Your role: synthesize research and ideas into clear strategy and action plans. "
+        "Review your team's work and produce polished, executive-level output. "
+        "Be decisive, strategic, and inspiring. End with concrete next steps."
+    ),
 }
 
 
 class MissionCrew:
-    def __init__(self, broadcast_fn: Callable[[dict], Any] = None):
+    def __init__(self, broadcast_fn: Optional[Callable[[dict], Any]] = None):
         self.broadcast_fn = broadcast_fn
-        self._llm = None
-        self._t = None
-        self._a = None
-        self._boss = None
+        self.client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        self.model = "claude-sonnet-4-6"
 
-    def _get_llm(self) -> LLM:
-        if not self._llm:
-            api_key = os.getenv("ANTHROPIC_API_KEY")
-            if not api_key:
-                raise ValueError("ANTHROPIC_API_KEY not set. Add it to backend/.env")
-            self._llm = LLM(model="claude-sonnet-4-6", api_key=api_key)
-        return self._llm
+    # ── Internal helpers ──────────────────────────────────────────────────────
 
-    def _emit(self, agent: str, event_type: str, content: str, task: str = ""):
-        """Emit a WebSocket event via the broadcast function."""
-        from datetime import datetime, timezone
-        event = {
+    def _emit(self, agent: str, content: str, event_type: str = "message"):
+        if not self.broadcast_fn:
+            return
+        msg = {
             "type": event_type,
             "agent": agent,
             "content": content,
-            "task": task,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
-        if self.broadcast_fn:
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    asyncio.run_coroutine_threadsafe(self.broadcast_fn(event), loop)
-                else:
-                    loop.run_until_complete(self.broadcast_fn(event))
-            except Exception:
-                pass
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.run_coroutine_threadsafe(self.broadcast_fn(msg), loop)
+        except Exception:
+            pass
 
-    def _step_callback(self, agent_output):
-        """Called by CrewAI after each agent step."""
-        agent_name = getattr(agent_output, "agent", "Unknown")
-        content = str(getattr(agent_output, "output", agent_output))[:500]
-        self._emit(str(agent_name), "agent_message", content)
+    def _web_search(self, query: str) -> str:
+        try:
+            from duckduckgo_search import DDGS
+            with DDGS() as ddgs:
+                results = list(ddgs.text(query, max_results=5))
+            if not results:
+                return "No results found."
+            return "\n\n".join(
+                f"**{r.get('title', '')}**\n{r.get('body', '')}\n{r.get('href', '')}"
+                for r in results
+            )
+        except Exception as e:
+            return f"Search unavailable: {e}"
 
-    def _task_callback(self, task_output):
-        """Called by CrewAI after each task completes."""
-        agent_name = str(getattr(task_output, "agent", "Unknown"))
-        description = str(getattr(task_output, "description", ""))[:100]
-        self._emit(agent_name, "task_complete", f"Task complete: {description}", task=description)
+    def _scrape_url(self, url: str) -> str:
+        try:
+            import requests
+            from bs4 import BeautifulSoup
+            resp = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+            soup = BeautifulSoup(resp.text, "lxml")
+            for tag in soup(["script", "style", "nav", "footer", "header"]):
+                tag.decompose()
+            text = soup.get_text(separator="\n", strip=True)
+            return text[:3000] or "Page content empty."
+        except Exception as e:
+            return f"Could not fetch URL: {e}"
+
+    def _get_trends(self, keywords: str) -> str:
+        try:
+            from pytrends.request import TrendReq
+            pt = TrendReq(hl="en-US", tz=360)
+            kw_list = [k.strip() for k in keywords.split(",")][:5]
+            pt.build_payload(kw_list, timeframe="today 1-m")
+            data = pt.interest_over_time()
+            if data.empty:
+                return f"No trend data for: {keywords}"
+            summary = data.tail(4).to_string()
+            return f"Google Trends (last 4 weeks) for [{', '.join(kw_list)}]:\n{summary}"
+        except Exception as e:
+            return f"Trends unavailable: {e}"
+
+    def _handle_tool(self, name: str, tool_input: dict) -> str:
+        if name == "web_search":
+            return self._web_search(tool_input.get("query", ""))
+        if name == "scrape_url":
+            return self._scrape_url(tool_input.get("url", ""))
+        if name == "get_trends":
+            return self._get_trends(tool_input.get("keywords", ""))
+        return f"Unknown tool: {name}"
+
+    # ── Agent runner ──────────────────────────────────────────────────────────
+
+    def _run_agent(self, agent_name: str, task: str, use_tools: bool = True) -> str:
+        self._emit(agent_name, f"Working on: {task[:120]}…", "task_start")
+
+        messages = [{"role": "user", "content": task}]
+        agent_tools = TOOLS if use_tools else []
+
+        for _ in range(10):  # max tool-use loops
+            kwargs: dict = dict(
+                model=self.model,
+                max_tokens=4096,
+                system=AGENT_SYSTEMS[agent_name],
+                messages=messages,
+            )
+            if agent_tools:
+                kwargs["tools"] = agent_tools
+
+            response = self.client.messages.create(**kwargs)
+
+            if response.stop_reason == "end_turn":
+                text = next(
+                    (b.text for b in response.content if hasattr(b, "text")), ""
+                )
+                self._emit(agent_name, text[:600] or "Done.", "message")
+                self._emit(agent_name, "Task completed.", "task_complete")
+                return text
+
+            if response.stop_reason == "tool_use":
+                messages.append({"role": "assistant", "content": response.content})
+                tool_results = []
+                for block in response.content:
+                    if block.type == "tool_use":
+                        self._emit(
+                            agent_name,
+                            f"Using {block.name}: {json.dumps(block.input)[:80]}",
+                            "tool_use",
+                        )
+                        result = self._handle_tool(block.name, block.input)
+                        self._emit(agent_name, f"Got result: {result[:200]}", "tool_result")
+                        tool_results.append(
+                            {"type": "tool_result", "tool_use_id": block.id, "content": result}
+                        )
+                messages.append({"role": "user", "content": tool_results})
+            else:
+                break
+
+        return "Agent reached max iterations."
+
+    # ── Mission modes ─────────────────────────────────────────────────────────
 
     def run_mission(self, brief: str, mode: str = "ideate") -> str:
-        """Execute a mission with the crew. Runs synchronously (call from thread)."""
-        llm = self._get_llm()
-        template = TASK_TEMPLATES.get(mode, TASK_TEMPLATES["ideate"])
+        self._emit("System", f"Mission launched [{mode.upper()}]: {brief[:100]}", "system")
 
-        self._emit("System", "system", f"Mission started: [{mode.upper()}] {brief}")
+        if mode == "ideate":
+            t_out = self._run_agent(
+                "T",
+                f"Generate 5 original product/service ideas for this brief: '{brief}'. "
+                "Search the web for trends and inspiration first. "
+                "For each idea: Name, Concept (2 sentences), Target Market, Key Differentiator, Why Now.",
+            )
+            a_out = self._run_agent(
+                "A",
+                f"Research the market landscape for: '{brief}'. "
+                "Search for trends, competitors, audience insights, and opportunities. "
+                f"Also consider these ideas already generated by your colleague:\n{t_out[:1200]}",
+            )
+            return self._run_agent(
+                "Boss",
+                f"Brief: '{brief}'\n\nIdeas from Agent T:\n{t_out}\n\nResearch from Agent A:\n{a_out}\n\n"
+                "Select the top 2 concepts and explain why. Create a 30-day action plan for the best one.",
+                use_tools=False,
+            )
 
-        agents_used = []
-        tasks = []
+        if mode == "research":
+            a_out = self._run_agent(
+                "A",
+                f"Conduct deep research on: '{brief}'. "
+                "Search for trends, data, key players, recent news, opportunities, and threats. "
+                "Produce a comprehensive research report with sections and data points.",
+            )
+            t_out = self._run_agent(
+                "T",
+                f"Based on this research about '{brief}', generate creative insights and "
+                f"design/product opportunities:\n{a_out[:1500]}",
+            )
+            return self._run_agent(
+                "Boss",
+                f"Brief: '{brief}'\n\nResearch from A:\n{a_out}\n\nCreative insights from T:\n{t_out}\n\n"
+                "Synthesize into a strategic briefing with key findings, opportunities, and recommendations.",
+                use_tools=False,
+            )
 
-        # Build agents and tasks based on mode
-        if "a_task" in template:
-            self._a = create_a_agent(llm)
-            a_desc = template["a_task"].format(brief=brief)
-            self._emit("A", "task_start", f"Starting research: {brief}", task="Research")
-            agents_used.append(self._a)
-            tasks.append(Task(
-                description=a_desc,
-                expected_output="A comprehensive research brief with key findings, trends, and insights. Minimum 500 words.",
-                agent=self._a,
-                callback=self._task_callback,
-            ))
+        if mode == "create":
+            t_out = self._run_agent(
+                "T",
+                f"Design a creative concept for: '{brief}'. "
+                "Define visual direction, messaging, brand voice, key assets needed, and user experience flow. "
+                "Search for design inspiration and reference examples.",
+            )
+            return self._run_agent(
+                "Boss",
+                f"Brief: '{brief}'\n\nDesign concept from T:\n{t_out}\n\n"
+                "Develop this into a full creative brief suitable for a design team. "
+                "Include: project overview, objectives, audience, deliverables, timeline, and success metrics.",
+                use_tools=False,
+            )
 
-        if "t_task" in template:
-            self._t = create_t_agent(llm)
-            t_desc = template["t_task"].format(brief=brief)
-            context = [tasks[-1]] if tasks else []
-            self._emit("T", "task_start", f"Developing concepts for: {brief}", task="Design & Ideation")
-            agents_used.append(self._t)
-            tasks.append(Task(
-                description=t_desc,
-                expected_output="3 well-defined product/creative concepts with clear user value, differentiation, and reasoning.",
-                agent=self._t,
-                context=context,
-                callback=self._task_callback,
-            ))
+        if mode == "manage":
+            a_out = self._run_agent(
+                "A",
+                f"Research and gather background for project management of: '{brief}'. "
+                "Cover market context, competitor landscape, trends, risks, and resource benchmarks.",
+            )
+            t_out = self._run_agent(
+                "T",
+                f"Taking A's research for '{brief}', develop the creative strategy and product design approach:\n{a_out[:1200]}",
+                use_tools=False,
+            )
+            return self._run_agent(
+                "Boss",
+                f"Brief: '{brief}'\n\nResearch:\n{a_out}\n\nCreative strategy:\n{t_out}\n\n"
+                "Create a full project plan: milestones, team structure, budget considerations, risks, and success metrics.",
+                use_tools=False,
+            )
 
-        self._boss = create_boss_agent(llm)
-        boss_desc = template["boss_task"].format(brief=brief)
-        self._emit("Boss", "task_start", f"Managing and delivering: {brief}", task="Orchestrate & Deliver")
-        agents_used.append(self._boss)
-        tasks.append(Task(
-            description=boss_desc,
-            expected_output="Final synthesised deliverable: a summary of what was created, files saved, and next steps.",
-            agent=self._boss,
-            context=tasks.copy() if tasks[:-1] else [],
-            callback=self._task_callback,
-        ))
-
-        crew = Crew(
-            agents=agents_used,
-            tasks=tasks,
-            process=Process.sequential,
-            verbose=True,
-            step_callback=self._step_callback,
-            memory=True,
-        )
-
-        try:
-            result = crew.kickoff()
-            final = str(result)
-            self._emit("Boss", "task_complete", f"Mission complete. {final[:300]}", task="Mission")
-            self._emit("System", "system", "All agents standing by.")
-            return final
-        except Exception as e:
-            self._emit("System", "error", f"Mission failed: {str(e)}")
-            raise
+        return f"Unknown mission mode: {mode}"
