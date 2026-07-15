@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, CalendarDays, Mail, Wallet, Settings, Sparkles } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Mail, Wallet, PenTool, Settings, Sparkles } from 'lucide-react';
 import { ModeSwitcher } from '@/components/ModeSwitcher';
 import { UserMenu } from '@/components/UserMenu';
 import { cn } from '@/lib/utils';
@@ -13,6 +13,7 @@ const NAV = [
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/mail', label: 'Mail', icon: Mail },
   { href: '/budget', label: 'Budget', icon: Wallet },
+  { href: '/cad', label: 'CAD', icon: PenTool },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
