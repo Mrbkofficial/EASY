@@ -117,11 +117,14 @@ per-user, right from the app's Settings page:
 
 ### Reminders & push notifications
 
-`vercel.json` already defines a cron job (`/api/cron/reminders`, every 5 minutes) — Vercel
-picks it up automatically on deploy, no extra setup. If you set `CRON_SECRET`, the route
-only accepts requests carrying it; Vercel's cron runner sends it automatically once you set
-`CRON_SECRET` as a Vercel **Cron Job Secret** in Project Settings → Cron Jobs (or simply as a
-regular env var — the route checks `Authorization: Bearer $CRON_SECRET`).
+`vercel.json` already defines a cron job (`/api/cron/reminders`, once daily at 13:00 UTC) —
+Vercel picks it up automatically on deploy, no extra setup. It's daily because Vercel's
+**Hobby** plan only allows cron jobs that run once per day; if your project is on **Pro** or
+higher, you can tighten the schedule (e.g. `*/5 * * * *` for every 5 minutes) for more
+timely reminders. If you set `CRON_SECRET`, the route only accepts requests carrying it;
+Vercel's cron runner sends it automatically once you set `CRON_SECRET` as a Vercel **Cron
+Job Secret** in Project Settings → Cron Jobs (or simply as a regular env var — the route
+checks `Authorization: Bearer $CRON_SECRET`).
 
 ## 8. Install to your Home Screen
 
