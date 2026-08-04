@@ -1,0 +1,1304 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0b1512">
+</head>
+<body>
+<title>Daba — Rabat ride-hailing prototype</title>
+<style>
+:root{
+  --green:#00C46A; --green-d:#059862; --green-t:#E6F9F0;
+  --ink:#0C1A14; --ink-2:#33433c; --muted:#5B6B64; --muted-2:#8A978F;
+  --bg:#F4F7F5; --surface:#FFFFFF; --line:#E4EBE7; --line-2:#D2DCD6;
+  --saffron:#E08A2E; --gold:#F5B301; --amber:#F5A623; --danger:#E5484D; --info:#2F6FED;
+  --night:#0E1613; --night-road:#24312b;
+  --shadow:0 10px 30px -12px rgba(12,26,20,.28);
+  --shadow-sm:0 2px 8px -3px rgba(12,26,20,.2);
+  --r:16px; --r-lg:22px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"Inter",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:var(--font);
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(0,196,106,.10), transparent 60%),
+    radial-gradient(900px 500px at 110% 10%, rgba(224,138,46,.08), transparent 55%),
+    #0d1512;
+  color:var(--ink);
+  min-height:100vh;
+  display:flex; align-items:center; justify-content:center;
+  padding:24px;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* ---------- Device frame ---------- */
+#device{
+  width:100%; max-width:412px; height:min(880px,94vh);
+  background:var(--bg); border-radius:44px; position:relative; overflow:hidden;
+  box-shadow:0 40px 80px -30px rgba(0,0,0,.7), 0 0 0 12px #0a0f0d, 0 0 0 13px #1c2621;
+  display:flex; flex-direction:column;
+}
+#notch{position:absolute; top:0; left:50%; transform:translateX(-50%); width:150px; height:26px;
+  background:#0a0f0d; border-radius:0 0 18px 18px; z-index:60}
+#statusbar{height:34px; display:flex; align-items:flex-end; justify-content:space-between;
+  padding:0 26px 4px; font-size:12.5px; font-weight:600; color:var(--ink); z-index:55; flex:none}
+#statusbar .sb-r{display:flex; gap:6px; align-items:center}
+#app{position:relative; flex:1; overflow:hidden; display:flex; flex-direction:column}
+#screen{flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; position:relative}
+#screen::-webkit-scrollbar{width:0}
+
+@media (max-width:480px){
+  body{padding:0; align-items:stretch}
+  #device{max-width:none; height:100vh; border-radius:0; box-shadow:none}
+  #notch{display:none}
+  #statusbar{padding-top:env(safe-area-inset-top)}
+}
+
+/* ---------- Type ---------- */
+.h1{font-size:29px; line-height:1.08; font-weight:800; letter-spacing:-.02em; text-wrap:balance; margin:0}
+.h2{font-size:21px; line-height:1.15; font-weight:750; letter-spacing:-.015em; margin:0}
+.h3{font-size:16px; font-weight:700; letter-spacing:-.01em; margin:0}
+.body{font-size:14.5px; line-height:1.5; color:var(--ink-2); margin:0}
+.sub{font-size:13px; color:var(--muted); line-height:1.45; margin:0}
+.eyebrow{font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--green-d)}
+.label{font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
+
+/* ---------- Buttons ---------- */
+.btn{appearance:none; border:none; border-radius:14px; padding:15px 18px; font-size:15.5px; font-weight:700;
+  cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:9px; transition:transform .06s, filter .15s, background .15s}
+.btn:active{transform:scale(.985)}
+.btn-primary{background:var(--green); color:#04120b}
+.btn-primary:hover{filter:brightness(1.04)}
+.btn-dark{background:var(--ink); color:#fff}
+.btn-ghost{background:var(--surface); color:var(--ink); box-shadow:inset 0 0 0 1.5px var(--line-2)}
+.btn-soft{background:var(--green-t); color:var(--green-d)}
+.btn:disabled{opacity:.45; cursor:not-allowed}
+.btn-sm{padding:11px 14px; font-size:14px; border-radius:12px; width:auto}
+.linkbtn{background:none;border:none;color:var(--green-d);font-weight:700;font-size:14px;cursor:pointer;padding:6px}
+
+/* ---------- Inputs ---------- */
+.field{display:flex; flex-direction:column; gap:7px}
+.input, .select{width:100%; border:1.5px solid var(--line-2); background:var(--surface); border-radius:13px;
+  padding:14px 15px; font-size:15px; color:var(--ink); outline:none; transition:border .15s, box-shadow .15s}
+.input:focus,.select:focus{border-color:var(--green); box-shadow:0 0 0 4px var(--green-t)}
+.input::placeholder{color:var(--muted-2)}
+.select{appearance:none; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%235B6B64' stroke-width='2.2' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>"); background-repeat:no-repeat; background-position:right 13px center}
+
+/* ---------- Layout helpers ---------- */
+.pad{padding:20px}
+.stack{display:flex; flex-direction:column}
+.row{display:flex; align-items:center}
+.between{display:flex; align-items:center; justify-content:space-between}
+.grow{flex:1}
+.gap6{gap:6px}.gap8{gap:8px}.gap10{gap:10px}.gap12{gap:12px}.gap14{gap:14px}.gap16{gap:16px}.gap20{gap:20px}
+.card{background:var(--surface); border-radius:var(--r); box-shadow:var(--shadow-sm); padding:16px}
+.divider{height:1px; background:var(--line); margin:2px 0}
+.pill{display:inline-flex; align-items:center; gap:6px; padding:5px 11px; border-radius:999px; font-size:12px; font-weight:700}
+.pill-green{background:var(--green-t); color:var(--green-d)}
+.pill-muted{background:#eef2f0; color:var(--muted)}
+.pill-gold{background:#FEF6E0; color:#9a7400}
+.chip{padding:9px 14px; border-radius:999px; font-size:13.5px; font-weight:600; background:var(--surface);
+  box-shadow:inset 0 0 0 1.5px var(--line-2); cursor:pointer; white-space:nowrap}
+.chip.on{background:var(--ink); color:#fff; box-shadow:none}
+.avatar{width:44px;height:44px;border-radius:50%;background:var(--green-t);color:var(--green-d);
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;flex:none}
+.stars{display:inline-flex;gap:2px;color:var(--gold)}
+.icon{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.topbar{display:flex;align-items:center;gap:12px;padding:12px 16px;flex:none}
+.iconbtn{width:40px;height:40px;border-radius:12px;background:var(--surface);box-shadow:var(--shadow-sm);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;color:var(--ink);flex:none}
+.list-row{display:flex;align-items:center;gap:13px;padding:13px 0;cursor:pointer}
+.list-ic{width:40px;height:40px;border-radius:12px;background:#eef3f0;display:flex;align-items:center;justify-content:center;color:var(--ink-2);flex:none}
+
+/* fade */
+.fade{animation:fade .28s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ---------- Splash / role ---------- */
+.hero{position:relative; height:100%; display:flex; flex-direction:column; color:#eafff4;
+  background:linear-gradient(160deg,#063d2a,#0b1512 70%)}
+.zellige{position:absolute; inset:0; opacity:.16; pointer-events:none}
+.brandmark{width:60px;height:60px;border-radius:18px;background:var(--green);display:flex;align-items:center;justify-content:center;color:#04120b;box-shadow:0 8px 30px -6px rgba(0,196,106,.6)}
+
+/* ---------- Map ---------- */
+.mapwrap{position:absolute; inset:0; overflow:hidden; background:#dfe8e2}
+.mapwrap svg{width:100%; height:100%; display:block}
+.map-night{background:var(--night)}
+.sheet{position:absolute; left:0; right:0; bottom:0; background:var(--surface);
+  border-radius:24px 24px 0 0; box-shadow:0 -14px 40px -18px rgba(0,0,0,.35); padding:18px 18px calc(18px + env(safe-area-inset-bottom));
+  z-index:20; max-height:82%; overflow-y:auto}
+.sheet::-webkit-scrollbar{width:0}
+.grab{width:40px;height:4px;border-radius:999px;background:var(--line-2);margin:0 auto 14px}
+.searchbar{display:flex;align-items:center;gap:10px;background:#eef3f0;border-radius:13px;padding:13px 14px;cursor:pointer}
+
+/* ride type option */
+.rt{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;cursor:pointer;border:2px solid transparent;transition:.12s}
+.rt:hover{background:#f6faf8}
+.rt.on{border-color:var(--green);background:var(--green-t)}
+.rt-ic{width:52px;height:40px;flex:none;display:flex;align-items:center;justify-content:center;font-size:26px}
+
+/* OTP */
+.otp{display:flex;gap:10px;justify-content:center}
+.otp input{width:52px;height:60px;text-align:center;font-size:24px;font-weight:800;border:1.5px solid var(--line-2);border-radius:14px;outline:none}
+.otp input:focus{border-color:var(--green);box-shadow:0 0 0 4px var(--green-t)}
+
+/* progress steps */
+.steps{display:flex;gap:6px}
+.steps span{height:5px;border-radius:999px;background:var(--line-2);flex:1;transition:.2s}
+.steps span.on{background:var(--green)}
+
+/* toggle */
+.toggle{width:52px;height:30px;border-radius:999px;background:var(--line-2);position:relative;cursor:pointer;transition:.2s;flex:none}
+.toggle.on{background:var(--green)}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.toggle.on::after{left:25px}
+
+/* incoming request pulse */
+.pulse{animation:pulse 1.4s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(0,196,106,.4)}70%{box-shadow:0 0 0 16px rgba(0,196,106,0)}100%{box-shadow:0 0 0 0 rgba(0,196,106,0)}}
+.spin{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.dotpulse{width:14px;height:14px;border-radius:50%;background:var(--green);position:relative}
+.dotpulse::after{content:"";position:absolute;inset:-8px;border-radius:50%;border:2px solid var(--green);animation:ring 1.6s infinite}
+@keyframes ring{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.6);opacity:0}}
+
+/* toast */
+#toast{position:absolute;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+  background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-size:13.5px;font-weight:600;
+  opacity:0;transition:.25s;z-index:200;pointer-events:none;max-width:90%;text-align:center;box-shadow:var(--shadow)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* modal */
+#modalwrap{position:absolute;inset:0;z-index:150;display:none;align-items:flex-end;justify-content:center}
+#modalwrap.show{display:flex}
+#modalbg{position:absolute;inset:0;background:rgba(6,14,10,.5);backdrop-filter:blur(2px)}
+#modalcard{position:relative;background:var(--surface);width:100%;border-radius:24px 24px 0 0;padding:20px 20px calc(20px + env(safe-area-inset-bottom));max-height:88%;overflow-y:auto;animation:up .28s cubic-bezier(.2,.9,.3,1)}
+@keyframes up{from{transform:translateY(100%)}to{transform:none}}
+.mini-bar{display:flex;align-items:flex-end;gap:7px;height:80px}
+.mini-bar > div{flex:1;background:var(--green-t);border-radius:6px 6px 0 0;position:relative}
+.mini-bar > div > span{position:absolute;bottom:0;left:0;right:0;background:var(--green);border-radius:6px 6px 0 0}
+:focus-visible{outline:2.5px solid var(--green-d);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001s!important;transition-duration:.05s!important}}
+</style>
+
+<div id="device">
+  <div id="notch"></div>
+  <div id="statusbar">
+    <span class="tnum" id="sb-time">9:41</span>
+    <span class="sb-r">
+      <svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4.5" y="4.5" width="3" height="7.5" rx="1"/><rect x="9" y="2" width="3" height="10" rx="1"/><rect x="13.5" y="0" width="3" height="12" rx="1"/></svg>
+      <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 2.5c2 0 3.8.8 5.1 2l1.1-1.2C13.6 1.7 11 .7 8 .7S2.4 1.7.7 3.3L1.8 4.5C3.2 3.3 5 2.5 8 2.5z" opacity=".9"/><path d="M8 6c1.1 0 2.1.4 2.9 1.1l1.1-1.2C10.9 4.8 9.5 4.2 8 4.2s-2.9.6-4 1.7l1.1 1.2C5.9 6.4 6.9 6 8 6z"/><circle cx="8" cy="9.6" r="1.8"/></svg>
+      <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="1" y="1" width="21" height="10" rx="2.5" stroke="currentColor" stroke-width="1.2" opacity=".5"/><rect x="2.5" y="2.5" width="16" height="7" rx="1.2" fill="currentColor"/><rect x="23" y="4" width="2" height="4" rx="1" fill="currentColor" opacity=".5"/></svg>
+    </span>
+  </div>
+  <div id="app">
+    <div id="screen"></div>
+    <div id="toast"></div>
+    <div id="modalwrap"><div id="modalbg"></div><div id="modalcard"></div></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   Daba — Rabat ride-hailing prototype (mock data, no backend)
+   ============================================================ */
+
+/* ---------------- Data ---------------- */
+// Rabat places, positioned on a stylized 400x520 map viewBox.
+const PLACES = [
+  {id:"agdal",   name:"Agdal",                 area:"Rabat",  x:150, y:300},
+  {id:"hayriad", name:"Hay Riad",              area:"Rabat",  x:205, y:388},
+  {id:"souissi", name:"Souissi",               area:"Rabat",  x:258, y:340},
+  {id:"medina",  name:"Médina de Rabat",       area:"Rabat",  x:120, y:150},
+  {id:"oudayas", name:"Kasbah des Oudayas",    area:"Rabat",  x:105, y:112},
+  {id:"hassan",  name:"Tour Hassan",           area:"Rabat",  x:170, y:150},
+  {id:"gare",    name:"Gare Rabat-Ville",      area:"Rabat",  x:158, y:214},
+  {id:"chellah", name:"Chellah",               area:"Rabat",  x:196, y:244},
+  {id:"arribat", name:"Arribat Center",        area:"Hay Riad",x:214, y:372},
+  {id:"mega",    name:"Mega Mall",             area:"Bord de l'eau", x:150, y:186},
+  {id:"marina",  name:"Marina Bouregreg",      area:"Bouregreg", x:236, y:150},
+  {id:"univ",    name:"Université Mohammed V", area:"Agdal",  x:172, y:322},
+  {id:"ocean",   name:"Quartier Océan",        area:"Rabat",  x:78,  y:196},
+  {id:"sale",    name:"Salé Médina",           area:"Salé",   x:300, y:96},
+  {id:"airport", name:"Aéroport Rabat-Salé",   area:"Salé",   x:346, y:128},
+];
+const placeById = id => PLACES.find(p=>p.id===id);
+
+const RIDE_TYPES = [
+  {id:"go",      name:"Daba Go",      emoji:"🚗", desc:"Abordable · Dacia Logan",        seats:4, base:8,  perKm:2.8, perMin:0.55, mult:1.0,  etaBase:4},
+  {id:"confort", name:"Daba Confort", emoji:"🚙", desc:"Voitures récentes · clim",       seats:4, base:11, perKm:3.4, perMin:0.7,  mult:1.0,  etaBase:5},
+  {id:"xl",      name:"Daba XL",      emoji:"🚐", desc:"Jusqu'à 6 places",               seats:6, base:15, perKm:4.2, perMin:0.9,  mult:1.0,  etaBase:7},
+  {id:"moto",    name:"Daba Moto",    emoji:"🛵", desc:"Le plus rapide · 1 place",       seats:1, base:5,  perKm:1.9, perMin:0.35, mult:1.0,  etaBase:3},
+];
+const rideTypeById = id => RIDE_TYPES.find(r=>r.id===id);
+
+const CAPTAINS = [
+  {name:"Youssef El Amrani",  rating:4.9, trips:2143, car:"Dacia Logan",   color:"Blanc",  plate:"45821 | ب | 6", moto:false},
+  {name:"Salma Idrissi",      rating:4.9, trips:1876, car:"Hyundai Accent",color:"Gris",   plate:"12094 | أ | 6", moto:false},
+  {name:"Mehdi Tazi",         rating:4.8, trips:3312, car:"Dacia Sandero", color:"Beige",  plate:"73310 | د | 6", moto:false},
+  {name:"Karim Alaoui",       rating:4.7, trips:986,  car:"Peugeot 301",   color:"Noir",   plate:"55127 | ج | 6", moto:false},
+  {name:"Fatima Zahra Bennani",rating:5.0,trips:1502, car:"Renault Clio",  color:"Bleu",   plate:"28470 | ه | 6", moto:false},
+  {name:"Reda Chraibi",       rating:4.8, trips:640,  car:"Yamaha NMAX",   color:"Noir",   plate:"90233 | و | 6", moto:true},
+];
+
+/* ---------------- State ---------------- */
+const DEFAULT_STATE = {
+  role:null,                 // 'rider' | 'driver'
+  screen:"splash",
+  rider:{
+    signedIn:false, name:"", phone:"",
+    wallet:150.0,
+    methods:[{id:"cash", type:"cash", label:"Espèces", primary:true}],
+    payMethodId:"cash",
+    saved:{home:null, work:null},
+    rides:[],              // history
+  },
+  driver:{
+    applied:false, approved:false, signedIn:false,
+    app:{ name:"", phone:"", email:"", city:"Rabat", make:"", model:"", year:"", color:"", plate:"",
+          docs:{permis:false, grise:false, assurance:false, photo:false} },
+    online:false,
+    earningsToday:0, tripsToday:0, rating:4.92,
+    trips:[],
+  },
+  ride:null,   // active rider ride
+  job:null,    // active driver job
+};
+let S = load();
+
+function load(){
+  try{
+    const raw = localStorage.getItem("daba_state");
+    if(raw){ const p = JSON.parse(raw); return {...structuredClone(DEFAULT_STATE), ...p}; }
+  }catch(e){}
+  return structuredClone(DEFAULT_STATE);
+}
+function save(){ try{ localStorage.setItem("daba_state", JSON.stringify(S)); }catch(e){} }
+function resetDemo(){ localStorage.removeItem("daba_state"); S = structuredClone(DEFAULT_STATE); go("splash"); }
+
+/* ---------------- Helpers ---------------- */
+const $ = sel => document.querySelector(sel);
+const screenEl = () => $("#screen");
+const el = (html) => { const t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstElementChild; };
+const dh = n => Math.round(n) + " DH";
+const dh1 = n => (Math.round(n*10)/10).toFixed(n%1?1:0);
+const initials = name => (name||"").trim().split(/\s+/).slice(0,2).map(w=>w[0]||"").join("").toUpperCase()||"?";
+const reduceMotion = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+function toast(msg){
+  const t=$("#toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),2200);
+}
+function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+function distanceKm(a,b){ return Math.max(0.8, dist(a,b)/11); }        // map units -> ~km
+function tripMinutes(km){ return Math.max(4, Math.round(km*2.6 + 2)); }
+function fareFor(type, km){
+  const t = rideTypeById(type);
+  const min = tripMinutes(km);
+  let f = t.base + t.perKm*km + t.perMin*min;
+  f = Math.max(f, t.base + 8);
+  return Math.round(f);
+}
+function icon(name){
+  const p = {
+    menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',
+    back:'<path d="M15 18l-6-6 6-6"/>',
+    close:'<path d="M6 6l12 12M18 6L6 18"/>',
+    pin:'<path d="M12 21s7-5.7 7-11a7 7 0 1 0-14 0c0 5.3 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+    dot:'<circle cx="12" cy="12" r="5"/>',
+    search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>',
+    star:'<path d="M12 3l2.6 5.6 6 .8-4.4 4.1 1.1 6L12 16.9 6.7 19.6l1.1-6L3.4 9.4l6-.8z"/>',
+    wallet:'<rect x="3" y="6" width="18" height="13" rx="3"/><path d="M16 12h2"/><path d="M3 9h13a2 2 0 0 1 2 2"/>',
+    cash:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>',
+    card:'<rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/>',
+    clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    user:'<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>',
+    phone:'<path d="M5 4h4l2 5-3 2a12 12 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+    shield:'<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/>',
+    check:'<path d="M5 12l4 4L19 6"/>',
+    car:'<path d="M5 16l1.5-5A2 2 0 0 1 8.4 9.6h7.2A2 2 0 0 1 17.5 11L19 16"/><rect x="3" y="16" width="18" height="4" rx="1.5"/><circle cx="7.5" cy="20" r="1"/><circle cx="16.5" cy="20" r="1"/>',
+    doc:'<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h6"/>',
+    chevr:'<path d="M9 6l6 6-6 6"/>',
+    plus:'<path d="M12 5v14M5 12h14"/>',
+    receipt:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+    logout:'<path d="M15 12H4M4 12l4-4M4 12l4 4"/><path d="M12 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5"/>',
+    map:'<path d="M9 4L4 6v14l5-2 6 2 5-2V4l-5 2-6-2z"/><path d="M9 4v14M15 6v14"/>',
+    gift:'<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v9h14v-9M12 8v13"/><path d="M12 8S9 3 6.5 4.5 9 8 12 8zM12 8s3-5 5.5-3.5S15 8 12 8z"/>',
+    steer:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 9.5V3.5M9.7 13.3l-5 3.5M14.3 13.3l5 3.5"/>',
+    nav:'<path d="M3 11l18-8-8 18-2-8-8-2z"/>',
+    flag:'<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+  }[name] || '';
+  return `<svg class="icon" viewBox="0 0 24 24">${p}</svg>`;
+}
+function starRow(r, size){
+  size=size||13;
+  return `<span class="stars" style="font-size:${size}px">★</span><span class="tnum" style="font-weight:700">${r.toFixed(r%1?2:1)}</span>`;
+}
+
+/* ---------------- Modal ---------------- */
+function openModal(html){
+  $("#modalcard").innerHTML = html;
+  $("#modalwrap").classList.add("show");
+}
+function closeModal(){ $("#modalwrap").classList.remove("show"); }
+$("#modalbg").addEventListener("click", closeModal);
+
+/* ---------------- Router ---------------- */
+function go(screen){ S.screen=screen; save(); render(); }
+function render(){
+  const r = SCREENS[S.screen] || SCREENS.splash;
+  const node = r();
+  const host = screenEl();
+  host.innerHTML="";
+  node.classList.add("fade");
+  host.appendChild(node);
+  host.scrollTop=0;
+}
+
+/* ============================================================
+   MAP rendering
+   ============================================================ */
+function mapSVG(opts){
+  opts = opts||{};
+  const night = opts.night;
+  const road = night ? "#2a3a32" : "#ffffff";
+  const roadEdge = night ? "#1b2620" : "#e6ede9";
+  const land = night ? "#0e1613" : "#dbe7de";
+  const green = night ? "#14261d" : "#bfe0c8";
+  const water = night ? "#0c2230" : "#a9d4e6";
+  const label = night ? "#4b6357" : "#7d8f85";
+  return `
+  <svg viewBox="0 0 400 520" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <rect x="0" y="0" width="400" height="520" fill="${land}"/>
+    <!-- Atlantic ocean (left) -->
+    <rect x="0" y="0" width="52" height="520" fill="${water}"/>
+    <text x="14" y="270" fill="${label}" font-size="10" font-weight="700" transform="rotate(-90 14 270)" opacity=".8">OCÉAN ATLANTIQUE</text>
+    <!-- Bouregreg river (diagonal, separates Salé) -->
+    <path d="M400 40 C 320 90, 300 130, 270 170 C 240 210, 250 250, 220 300 C 190 350, 170 420, 120 520 L 400 520 Z" fill="${water}" opacity=".95"/>
+    <path d="M400 40 C 320 90, 300 130, 270 170 C 240 210, 250 250, 220 300 C 190 350, 170 420, 120 520" fill="none" stroke="${night?'#0a2f42':'#8ec3d8'}" stroke-width="2"/>
+    <text x="315" y="230" fill="${label}" font-size="10" font-weight="700" opacity=".8">SALÉ</text>
+    <!-- parks -->
+    <ellipse cx="130" cy="360" rx="46" ry="34" fill="${green}"/>
+    <ellipse cx="235" cy="430" rx="40" ry="30" fill="${green}"/>
+    <circle cx="150" cy="130" r="26" fill="${green}"/>
+    <!-- road grid -->
+    <g stroke="${roadEdge}" stroke-width="9" fill="none" stroke-linecap="round">
+      <path d="M60 90 H250"/><path d="M60 170 H235"/><path d="M60 250 H255"/><path d="M60 330 H250"/><path d="M60 410 H235"/>
+      <path d="M100 60 V470"/><path d="M170 60 V500"/><path d="M235 60 V470"/>
+    </g>
+    <g stroke="${road}" stroke-width="5" fill="none" stroke-linecap="round">
+      <path d="M60 90 H250"/><path d="M60 170 H235"/><path d="M60 250 H255"/><path d="M60 330 H250"/><path d="M60 410 H235"/>
+      <path d="M100 60 V470"/><path d="M170 60 V500"/><path d="M235 60 V470"/>
+    </g>
+    <!-- district labels -->
+    <text x="126" y="292" fill="${label}" font-size="11" font-weight="800" opacity=".85">AGDAL</text>
+    <text x="180" y="400" fill="${label}" font-size="11" font-weight="800" opacity=".85">HAY RIAD</text>
+    <text x="96" y="140" fill="${label}" font-size="11" font-weight="800" opacity=".85">MÉDINA</text>
+    <text x="240" y="330" fill="${label}" font-size="11" font-weight="800" opacity=".85">SOUISSI</text>
+    <g id="map-dyn"></g>
+  </svg>`;
+}
+// Build a marker <g> for the dynamic layer (returns HTML string)
+function pinMarker(x,y,color,labelTxt){
+  return `<g transform="translate(${x} ${y})">
+    <circle r="8" fill="${color}" stroke="#fff" stroke-width="2.5"/>
+    ${labelTxt?`<text x="12" y="4" font-size="10" font-weight="800" fill="#0c1a14" style="paint-order:stroke;stroke:#fff;stroke-width:3">${labelTxt}</text>`:""}
+  </g>`;
+}
+function carMarker(x,y,angle){
+  return `<g id="carmk" transform="translate(${x} ${y}) rotate(${angle})">
+    <circle r="13" fill="rgba(0,196,106,.18)"/>
+    <rect x="-9" y="-6" width="18" height="12" rx="4" fill="#0c1a14"/>
+    <rect x="-6" y="-4" width="12" height="8" rx="2" fill="#00C46A"/>
+  </g>`;
+}
+
+/* animate a marker from A to B, calling done() at end. Returns cancel fn. */
+function animateCar(from, to, ms, onDone){
+  const layer = document.getElementById("map-dyn");
+  if(!layer){ onDone&&onDone(); return ()=>{}; }
+  if(reduceMotion){
+    layer.querySelector("#carmk") && (layer.querySelector("#carmk").outerHTML="");
+    onDone&&onDone(); return ()=>{};
+  }
+  const start=performance.now(); let raf;
+  const ang = Math.atan2(to.y-from.y, to.x-from.x)*180/Math.PI;
+  function frame(now){
+    const t = Math.min(1,(now-start)/ms);
+    const e = t<.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
+    const x = from.x+(to.x-from.x)*e, y=from.y+(to.y-from.y)*e;
+    const mk = document.getElementById("carmk");
+    if(mk){ mk.setAttribute("transform",`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${ang.toFixed(0)})`); }
+    if(t<1){ raf=requestAnimationFrame(frame); } else { onDone&&onDone(); }
+  }
+  raf=requestAnimationFrame(frame);
+  return ()=>cancelAnimationFrame(raf);
+}
+
+/* ============================================================
+   SCREENS
+   ============================================================ */
+const SCREENS = {};
+
+/* ---------- Splash / role select ---------- */
+SCREENS.splash = () => {
+  const n = el(`<div class="hero">
+    <canvas class="zellige" id="zell"></canvas>
+    <div style="position:relative;flex:1;display:flex;flex-direction:column;justify-content:center;padding:30px">
+      <div class="brandmark" style="margin-bottom:20px">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#04120b" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 16l1.5-5A2 2 0 0 1 8.4 9.6h7.2A2 2 0 0 1 17.5 11L19 16"/><rect x="3" y="16" width="18" height="4" rx="1.5"/><circle cx="7.5" cy="20" r="1"/><circle cx="16.5" cy="20" r="1"/></svg>
+      </div>
+      <div style="font-size:15px;font-weight:700;letter-spacing:.32em;color:#7ff0bd;margin-bottom:6px">DABA · دابا</div>
+      <h1 class="h1" style="font-size:38px;color:#fff;margin-bottom:12px">Votre trajet à Rabat,<br>maintenant.</h1>
+      <p class="body" style="color:#bfe9d3;max-width:32ch">Réservez une course en quelques secondes. Chauffeurs vérifiés, prix clairs en dirhams.</p>
+    </div>
+    <div style="position:relative;padding:22px;display:flex;flex-direction:column;gap:11px">
+      <button class="btn btn-primary" id="go-rider">
+        ${icon("user")} Je cherche une course
+      </button>
+      <button class="btn" id="go-driver" style="background:rgba(255,255,255,.1);color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.25)">
+        ${icon("steer")} Devenir chauffeur
+      </button>
+      <p class="sub" style="text-align:center;color:#7fae97;margin-top:4px">Prototype de démonstration · paiements simulés</p>
+    </div>
+  </div>`);
+  n.querySelector("#go-rider").onclick=()=>{ S.role="rider"; go(S.rider.signedIn?"rider_home":"rider_auth"); };
+  n.querySelector("#go-driver").onclick=()=>{ S.role="driver";
+    go(S.driver.approved ? "driver_dash" : (S.driver.applied ? "driver_review" : "driver_intro")); };
+  setTimeout(()=>drawZellige(n.querySelector("#zell")),0);
+  return n;
+};
+function drawZellige(cv){
+  if(!cv) return;
+  const w=cv.offsetWidth||412, h=cv.offsetHeight||800;
+  cv.width=w; cv.height=h; const g=cv.getContext("2d");
+  const s=46; g.strokeStyle="#00C46A"; g.lineWidth=1.1;
+  for(let y=-s;y<h+s;y+=s){ for(let x=-s;x<w+s;x+=s){
+    g.save(); g.translate(x+s/2,y+s/2); g.beginPath();
+    for(let i=0;i<8;i++){ const a=i*Math.PI/4, r=i%2?s*0.5:s*0.24;
+      const px=Math.cos(a)*r, py=Math.sin(a)*r; i?g.lineTo(px,py):g.moveTo(px,py); }
+    g.closePath();
+    g.strokeStyle = ((x/s+y/s)%2) ? "#00C46A" : "#E08A2E";
+    g.stroke(); g.restore();
+  }}
+}
+
+/* ---------- Rider auth: phone ---------- */
+SCREENS.rider_auth = () => {
+  const n = el(`<div class="stack" style="height:100%">
+    <div class="topbar"><button class="iconbtn" id="bk">${icon("back")}</button></div>
+    <div class="pad stack gap20 grow">
+      <div class="stack gap8">
+        <div class="eyebrow">Espace passager</div>
+        <h1 class="h1">Entrez votre numéro</h1>
+        <p class="sub">Nous vous enverrons un code de vérification par SMS.</p>
+      </div>
+      <div class="field">
+        <label class="label">Numéro de téléphone</label>
+        <div class="row gap8">
+          <div class="input" style="width:78px;text-align:center;font-weight:700">🇲🇦 +212</div>
+          <input class="input grow" id="phone" inputmode="numeric" placeholder="6 12 34 56 78" value="${S.rider.phone.replace('+212','')}">
+        </div>
+      </div>
+      <div class="field">
+        <label class="label">Votre prénom</label>
+        <input class="input" id="name" placeholder="Ex. Sara" value="${S.rider.name}">
+      </div>
+    </div>
+    <div class="pad"><button class="btn btn-primary" id="cont">Continuer</button></div>
+  </div>`);
+  n.querySelector("#bk").onclick=()=>go("splash");
+  n.querySelector("#cont").onclick=()=>{
+    const ph=n.querySelector("#phone").value.trim(); const nm=n.querySelector("#name").value.trim();
+    if(ph.replace(/\D/g,"").length<6){ toast("Entrez un numéro valide"); return; }
+    S.rider.phone="+212"+ph; S.rider.name=nm||"Passager"; save(); go("rider_otp");
+  };
+  return n;
+};
+SCREENS.rider_otp = () => {
+  const n = el(`<div class="stack" style="height:100%">
+    <div class="topbar"><button class="iconbtn" id="bk">${icon("back")}</button></div>
+    <div class="pad stack gap20 grow">
+      <div class="stack gap8">
+        <h1 class="h1">Vérification</h1>
+        <p class="sub">Code envoyé au <b>${S.rider.phone}</b>. <span style="color:var(--green-d)">Astuce démo : tapez 0000</span></p>
+      </div>
+      <div class="otp" id="otp">
+        ${[0,1,2,3].map(i=>`<input inputmode="numeric" maxlength="1" data-i="${i}">`).join("")}
+      </div>
+      <button class="linkbtn" style="align-self:center">Renvoyer le code (0:23)</button>
+    </div>
+    <div class="pad"><button class="btn btn-primary" id="verify" disabled>Vérifier</button></div>
+  </div>`);
+  n.querySelector("#bk").onclick=()=>go("rider_auth");
+  const inputs=[...n.querySelectorAll(".otp input")];
+  const btn=n.querySelector("#verify");
+  const check=()=>{ btn.disabled = inputs.some(i=>!i.value); };
+  inputs.forEach((inp,idx)=>{
+    inp.addEventListener("input",()=>{ inp.value=inp.value.replace(/\D/g,""); if(inp.value&&idx<3)inputs[idx+1].focus(); check(); });
+    inp.addEventListener("keydown",e=>{ if(e.key==="Backspace"&&!inp.value&&idx>0)inputs[idx-1].focus(); });
+  });
+  setTimeout(()=>inputs[0].focus(),50);
+  btn.onclick=()=>{ S.rider.signedIn=true; save(); toast("Bienvenue "+S.rider.name+" !"); go("rider_home"); };
+  return n;
+};
+
+/* ---------- Rider home ---------- */
+SCREENS.rider_home = () => {
+  const rr = S.rider;
+  const n = el(`<div style="position:relative;height:100%">
+    <div class="mapwrap">${mapSVG()}</div>
+    <div style="position:absolute;top:0;left:0;right:0;padding:12px 14px;display:flex;justify-content:space-between;z-index:10">
+      <button class="iconbtn" id="menu">${icon("menu")}</button>
+      <button class="iconbtn" id="prof" style="width:auto;padding:0 12px;gap:8px">${icon("shield")}<span style="font-size:13px;font-weight:700">Sécurité</span></button>
+    </div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <h2 class="h2" style="margin-bottom:14px">Bonjour ${rr.name.split(" ")[0]||"👋"}, où allons-nous ?</h2>
+      <div class="searchbar" id="where">
+        ${icon("search")}
+        <span style="color:var(--muted);font-weight:600;font-size:15px">Entrez votre destination</span>
+      </div>
+      <div class="row gap12" style="margin-top:14px;overflow-x:auto">
+        <button class="chip" data-saved="home">🏠 ${rr.saved.home?placeById(rr.saved.home).name:"Domicile"}</button>
+        <button class="chip" data-saved="work">💼 ${rr.saved.work?placeById(rr.saved.work).name:"Travail"}</button>
+        <button class="chip" data-quick="airport">✈️ Aéroport</button>
+      </div>
+      ${rr.rides.length?`<div class="divider" style="margin:16px 0"></div>
+      <div class="label" style="margin-bottom:8px">Récent</div>
+      ${rr.rides.slice(0,2).map(rd=>`<div class="list-row" data-recent="${rd.destId}">
+        <div class="list-ic">${icon("clock")}</div>
+        <div class="grow"><div class="h3">${placeById(rd.destId).name}</div><div class="sub">${rd.date} · ${dh(rd.fare)}</div></div>
+      </div>`).join("")}`:""}
+    </div>
+  </div>`);
+  n.querySelector("#menu").onclick=openMenu;
+  n.querySelector("#prof").onclick=()=>toast("Partage de trajet & bouton d'urgence (démo)");
+  n.querySelector("#where").onclick=()=>go("rider_dest");
+  n.querySelectorAll("[data-saved]").forEach(b=>b.onclick=()=>{
+    const k=b.dataset.saved; const id=rr.saved[k];
+    if(!id){ toast("Choisissez un lieu pour l'enregistrer"); go("rider_dest"); return; }
+    startPlanning(id);
+  });
+  n.querySelectorAll("[data-quick]").forEach(b=>b.onclick=()=>startPlanning(b.dataset.quick));
+  n.querySelectorAll("[data-recent]").forEach(b=>b.onclick=()=>startPlanning(b.dataset.recent));
+  return n;
+};
+
+/* pickup default = Agdal (user location mock) */
+function startPlanning(destId){
+  S.ride = { pickupId:"agdal", destId, typeId:"go", promo:null, status:"planning" };
+  save(); go("rider_ride");
+}
+
+/* ---------- Destination search ---------- */
+SCREENS.rider_dest = () => {
+  const n = el(`<div class="stack" style="height:100%">
+    <div class="topbar">
+      <button class="iconbtn" id="bk">${icon("back")}</button>
+      <div class="h3">Planifier la course</div>
+    </div>
+    <div class="pad stack gap10">
+      <div class="card stack gap10" style="padding:14px">
+        <div class="row gap12">
+          <span class="dotpulse" style="width:11px;height:11px"></span>
+          <input class="grow" id="pick" style="border:none;outline:none;font-size:15px;font-weight:600;background:none" value="Agdal (position actuelle)">
+        </div>
+        <div class="divider"></div>
+        <div class="row gap12">
+          <span style="color:var(--danger)">${icon("pin")}</span>
+          <input class="grow" id="dest" style="border:none;outline:none;font-size:15px;background:none" placeholder="Où allez-vous ?" autofocus>
+        </div>
+      </div>
+      <div id="results" class="stack"></div>
+    </div>
+  </div>`);
+  n.querySelector("#bk").onclick=()=>go("rider_home");
+  const results=n.querySelector("#results");
+  const draw=(q)=>{
+    const list = PLACES.filter(p=>p.id!=="agdal" && (!q || (p.name+p.area).toLowerCase().includes(q.toLowerCase())));
+    results.innerHTML = list.map(p=>`<div class="list-row" data-id="${p.id}">
+      <div class="list-ic">${icon("pin")}</div>
+      <div class="grow"><div class="h3">${p.name}</div><div class="sub">${p.area}</div></div>
+      ${icon("chevr")}
+    </div>`).join("") || `<p class="sub" style="padding:12px">Aucun lieu trouvé.</p>`;
+    results.querySelectorAll("[data-id]").forEach(r=>r.onclick=()=>startPlanning(r.dataset.id));
+  };
+  draw("");
+  n.querySelector("#dest").addEventListener("input",e=>draw(e.target.value));
+  setTimeout(()=>n.querySelector("#dest").focus(),60);
+  return n;
+};
+
+/* ---------- Ride: choose type + confirm ---------- */
+SCREENS.rider_ride = () => {
+  const ride=S.ride; const pick=placeById(ride.pickupId), dest=placeById(ride.destId);
+  const km=distanceKm(pick,dest); const mins=tripMinutes(km);
+  const method = rr_method();
+  const n = el(`<div style="position:relative;height:100%">
+    <div class="mapwrap">${mapSVG()}</div>
+    <div style="position:absolute;top:0;left:0;padding:12px 14px;z-index:10">
+      <button class="iconbtn" id="bk">${icon("back")}</button>
+    </div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="between" style="margin-bottom:12px">
+        <div><div class="label">Trajet</div><div class="h3">${pick.name} → ${dest.name}</div></div>
+        <div style="text-align:right"><div class="label">Distance</div><div class="h3 tnum">${dh1(km)} km · ${mins} min</div></div>
+      </div>
+      <div class="stack gap6" id="types">
+        ${RIDE_TYPES.map(t=>{
+          const f=fareFor(t.id,km);
+          return `<div class="rt ${t.id===ride.typeId?'on':''}" data-t="${t.id}">
+            <div class="rt-ic">${t.emoji}</div>
+            <div class="grow"><div class="h3">${t.name} <span class="sub" style="font-weight:600">· ${t.seats} 👤</span></div><div class="sub">${t.desc} · ${t.etaBase} min</div></div>
+            <div class="h3 tnum">${dh(f)}</div>
+          </div>`;
+        }).join("")}
+      </div>
+      <div class="divider" style="margin:14px 0"></div>
+      <div class="row gap12" style="margin-bottom:12px">
+        <button class="chip" id="pay" style="display:flex;gap:8px">${icon(method.type==='card'?'card':method.type==='wallet'?'wallet':'cash')}${method.label}</button>
+        <button class="chip" id="promo">${icon("gift")}${ride.promo?ride.promo.code:"Code promo"}</button>
+      </div>
+      <button class="btn btn-primary" id="confirm"></button>
+    </div>
+  </div>`);
+  n.querySelector("#bk").onclick=()=>go("rider_home");
+  n.querySelectorAll(".rt").forEach(r=>r.onclick=()=>{ ride.typeId=r.dataset.t; save(); render(); });
+  n.querySelector("#pay").onclick=()=>openPayPicker();
+  n.querySelector("#promo").onclick=()=>openPromo();
+  const updateCTA=()=>{
+    let f=fareFor(ride.typeId,km); let disc=0;
+    if(ride.promo){ disc = ride.promo.type==="pct"? f*ride.promo.val : ride.promo.val; }
+    const total=Math.max(5, Math.round(f-disc));
+    n.querySelector("#confirm").innerHTML = `Confirmer ${rideTypeById(ride.typeId).name} · ${dh(total)}`;
+  };
+  updateCTA();
+  n.querySelector("#confirm").onclick=()=>{
+    let f=fareFor(ride.typeId,km); let disc=0;
+    if(ride.promo){ disc = ride.promo.type==="pct"? f*ride.promo.val : ride.promo.val; }
+    ride.fare=Math.max(5,Math.round(f-disc)); ride.km=km; ride.mins=mins; ride.status="searching";
+    save(); go("rider_matching");
+  };
+  return n;
+};
+function rr_method(){ return S.rider.methods.find(m=>m.id===S.rider.payMethodId) || S.rider.methods[0]; }
+
+function openPayPicker(){
+  const rr=S.rider;
+  openModal(`<div class="grab"></div><h2 class="h2" style="margin-bottom:14px">Mode de paiement</h2>
+    <div class="stack" id="mlist">
+      ${rr.methods.map(m=>`<div class="list-row" data-m="${m.id}">
+        <div class="list-ic">${icon(m.type==='card'?'card':m.type==='wallet'?'wallet':'cash')}</div>
+        <div class="grow"><div class="h3">${m.label}</div>${m.type==='wallet'?`<div class="sub tnum">Solde ${dh(rr.wallet)}</div>`:m.type==='cash'?`<div class="sub">Payez le chauffeur directement</div>`:`<div class="sub">${m.brand} · exp ${m.exp}</div>`}</div>
+        ${m.id===rr.payMethodId?`<span style="color:var(--green-d)">${icon("check")}</span>`:""}
+      </div>`).join("")}
+    </div>
+    <div class="divider" style="margin:8px 0 14px"></div>
+    <button class="btn btn-ghost" id="addcard">${icon("plus")} Ajouter une carte</button>`);
+  $("#mlist").querySelectorAll("[data-m]").forEach(r=>r.onclick=()=>{ S.rider.payMethodId=r.dataset.m; save(); closeModal(); render(); });
+  $("#addcard").onclick=openAddCard;
+}
+function openAddCard(){
+  openModal(`<div class="grab"></div><h2 class="h2" style="margin-bottom:6px">Ajouter une carte</h2>
+    <p class="sub" style="margin-bottom:16px">Paiement simulé — aucune vraie carte n'est débitée.</p>
+    <div class="stack gap12">
+      <div class="field"><label class="label">Numéro de carte</label><input class="input tnum" id="cc" inputmode="numeric" placeholder="4242 4242 4242 4242"></div>
+      <div class="row gap12">
+        <div class="field grow"><label class="label">Expiration</label><input class="input tnum" id="exp" placeholder="MM/AA"></div>
+        <div class="field" style="width:110px"><label class="label">CVV</label><input class="input tnum" id="cvv" inputmode="numeric" placeholder="123"></div>
+      </div>
+      <button class="btn btn-primary" id="savecard">Ajouter la carte</button>
+    </div>`);
+  const cc=$("#cc"), exp=$("#exp");
+  cc.addEventListener("input",()=>{ let v=cc.value.replace(/\D/g,"").slice(0,16); cc.value=v.replace(/(.{4})/g,"$1 ").trim(); });
+  exp.addEventListener("input",()=>{ let v=exp.value.replace(/\D/g,"").slice(0,4); exp.value = v.length>2? v.slice(0,2)+"/"+v.slice(2):v; });
+  $("#savecard").onclick=()=>{
+    const num=cc.value.replace(/\D/g,"");
+    if(num.length<15){ toast("Numéro de carte invalide"); return; }
+    if(!/\d\d\/\d\d/.test(exp.value)){ toast("Date d'expiration invalide"); return; }
+    const brand = num[0]==="4"?"Visa":num[0]==="5"?"Mastercard":"Carte";
+    const id="card"+Date.now();
+    S.rider.methods.push({id, type:"card", label:brand+" ••"+num.slice(-4), brand, exp:exp.value, primary:false});
+    // add wallet option if not present
+    if(!S.rider.methods.some(m=>m.type==="wallet")) S.rider.methods.push({id:"wallet",type:"wallet",label:"Daba Pay"});
+    S.rider.payMethodId=id; save(); closeModal(); toast("Carte ajoutée ✓"); render();
+  };
+}
+function openPromo(){
+  openModal(`<div class="grab"></div><h2 class="h2" style="margin-bottom:6px">Code promo</h2>
+    <p class="sub" style="margin-bottom:14px">Essayez <b>RABAT10</b> (-10%) ou <b>BIENVENUE</b> (-15 DH).</p>
+    <div class="stack gap12">
+      <input class="input" id="pc" placeholder="Entrez le code" style="text-transform:uppercase" value="${S.ride.promo?S.ride.promo.code:''}">
+      <button class="btn btn-primary" id="apply">Appliquer</button>
+      ${S.ride.promo?`<button class="linkbtn" id="rm">Retirer le code</button>`:""}
+    </div>`);
+  $("#apply").onclick=()=>{
+    const code=$("#pc").value.trim().toUpperCase();
+    const map={RABAT10:{code,type:"pct",val:.10}, BIENVENUE:{code,type:"flat",val:15}};
+    if(map[code]){ S.ride.promo=map[code]; save(); closeModal(); toast("Code appliqué ✓"); render(); }
+    else toast("Code invalide");
+  };
+  if($("#rm")) $("#rm").onclick=()=>{ S.ride.promo=null; save(); closeModal(); render(); };
+}
+
+/* ---------- Matching (finding a captain) ---------- */
+SCREENS.rider_matching = () => {
+  const ride=S.ride; const pick=placeById(ride.pickupId), dest=placeById(ride.destId);
+  const n = el(`<div style="position:relative;height:100%">
+    <div class="mapwrap">${mapSVG()}</div>
+    <div class="sheet" style="text-align:center">
+      <div class="grab"></div>
+      <div style="display:flex;justify-content:center;margin:8px 0 16px">
+        <svg width="46" height="46" viewBox="0 0 24 24" class="spin" fill="none" stroke="var(--green)" stroke-width="2.4" stroke-linecap="round"><path d="M12 3a9 9 0 1 0 9 9" opacity=".9"/></svg>
+      </div>
+      <h2 class="h2">Recherche d'un chauffeur…</h2>
+      <p class="sub" style="margin-top:6px">${rideTypeById(ride.typeId).name} · ${dh(ride.fare)} vers ${dest.name}</p>
+      <button class="linkbtn" id="cancel" style="margin-top:18px">Annuler</button>
+    </div>
+  </div>`);
+  n.querySelector("#cancel").onclick=()=>{ clearTimeout(matchTimer); S.ride=null; save(); go("rider_home"); };
+  // dynamic map dots
+  setTimeout(()=>{ const d=document.getElementById("map-dyn"); if(d) d.innerHTML=pinMarker(pick.x,pick.y,"#00C46A")+pinMarker(dest.x,dest.y,"#E5484D"); },0);
+  const cap = ride.typeId==="moto" ? CAPTAINS.find(c=>c.moto) : CAPTAINS[Math.floor(Math.random()*(CAPTAINS.length-1))];
+  window.matchTimer = setTimeout(()=>{
+    ride.captain = {...cap, etaMin: rideTypeById(ride.typeId).etaBase + Math.floor(Math.random()*3)};
+    ride.status="arriving";
+    // captain starts a few blocks away
+    ride.captainPos = {x: pick.x+40, y: pick.y-50};
+    save(); go("rider_trip");
+  }, reduceMotion?400:2600);
+  return n;
+};
+
+/* ---------- Trip: arriving -> in progress -> (payment) ---------- */
+SCREENS.rider_trip = () => {
+  const ride=S.ride; const pick=placeById(ride.pickupId), dest=placeById(ride.destId); const c=ride.captain;
+  const arriving = ride.status==="arriving";
+  const n = el(`<div style="position:relative;height:100%">
+    <div class="mapwrap">${mapSVG()}</div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="between" style="margin-bottom:6px">
+        <span class="pill ${arriving?'pill-gold':'pill-green'}" id="status">${arriving?"Le chauffeur arrive · "+c.etaMin+" min":"En route vers "+dest.name}</span>
+        <span class="sub tnum">${dh(ride.fare)} · ${rr_method().label}</span>
+      </div>
+      <div class="card" style="margin:12px 0;padding:14px">
+        <div class="row gap12">
+          <div class="avatar">${initials(c.name)}</div>
+          <div class="grow">
+            <div class="h3">${c.name}</div>
+            <div class="sub">${starRow(c.rating)} · ${c.car} · ${c.color}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="pill pill-muted tnum" style="font-weight:800;font-size:13px">${c.plate}</div>
+          </div>
+        </div>
+        <div class="divider" style="margin:12px 0"></div>
+        <div class="row gap10">
+          <button class="btn btn-soft btn-sm grow" id="call">${icon("phone")} Appeler</button>
+          <button class="btn btn-ghost btn-sm grow" id="msg">Message</button>
+          <button class="btn btn-ghost btn-sm" id="share">${icon("shield")}</button>
+        </div>
+      </div>
+      ${arriving?`<button class="btn btn-ghost" id="cancel">Annuler la course</button>`:`
+      <div class="between"><span class="sub">Arrivée estimée</span><span class="h3 tnum" id="eta">${ride.mins} min</span></div>`}
+    </div>
+  </div>`);
+  n.querySelector("#call").onclick=()=>toast("Appel du chauffeur… (démo)");
+  n.querySelector("#msg").onclick=()=>toast("Messagerie (démo)");
+  n.querySelector("#share").onclick=()=>toast("Trajet partagé avec un proche (démo)");
+  if(n.querySelector("#cancel")) n.querySelector("#cancel").onclick=()=>{
+    if(cancelAnim)cancelAnim(); clearTimeout(tripTimer); S.ride=null; save(); go("rider_home");
+  };
+
+  // draw pins + car, then animate
+  setTimeout(()=>{
+    const d=document.getElementById("map-dyn"); if(!d) return;
+    if(arriving){
+      d.innerHTML = pinMarker(pick.x,pick.y,"#00C46A","Départ") + carMarker(ride.captainPos.x,ride.captainPos.y,0);
+      window.cancelAnim = animateCar(ride.captainPos, pick, reduceMotion?300:3200, ()=>{
+        ride.status="progress"; save();
+        toast("Vous êtes à bord — bon voyage !");
+        render();
+      });
+    } else {
+      d.innerHTML = pinMarker(pick.x,pick.y,"#00C46A") + pinMarker(dest.x,dest.y,"#E5484D","Arrivée") + carMarker(pick.x,pick.y,0);
+      window.cancelAnim = animateCar(pick, dest, reduceMotion?300:5200, ()=>{
+        finishRide();
+      });
+    }
+  },0);
+  return n;
+};
+function finishRide(){
+  const ride=S.ride;
+  ride.status="completed";
+  ride.date = new Date().toLocaleDateString("fr-FR",{day:"numeric",month:"short"});
+  // handle payment
+  const m=rr_method();
+  if(m.type==="wallet"){ S.rider.wallet = Math.max(0, S.rider.wallet - ride.fare); }
+  save(); go("rider_paid");
+}
+
+/* ---------- Trip complete: payment + rating ---------- */
+SCREENS.rider_paid = () => {
+  const ride=S.ride; const dest=placeById(ride.destId), pick=placeById(ride.pickupId); const c=ride.captain; const m=rr_method();
+  const base = fareFor(ride.typeId, ride.km);
+  const disc = ride.promo ? (ride.promo.type==="pct"? Math.round(base*ride.promo.val): ride.promo.val) : 0;
+  let rated=0, tip=0;
+  const n = el(`<div class="stack" style="height:100%;background:var(--bg)">
+    <div style="background:linear-gradient(160deg,#063d2a,#0b1512);color:#fff;padding:26px 20px 22px;text-align:center">
+      <div style="display:flex;justify-content:center;margin-bottom:10px">
+        <div style="width:56px;height:56px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;color:#04120b">${icon("check")}</div>
+      </div>
+      <h1 class="h1" style="color:#fff">Course terminée</h1>
+      <p class="sub" style="color:#bfe9d3;margin-top:4px">Vous êtes arrivé à ${dest.name}</p>
+    </div>
+    <div class="pad stack gap14 grow" style="overflow-y:auto">
+      <div class="card stack gap10">
+        <div class="label">Reçu · ${ride.date}</div>
+        <div class="between"><span class="body">Tarif de base (${dh1(ride.km)} km)</span><span class="tnum">${dh(base)}</span></div>
+        ${disc?`<div class="between" style="color:var(--green-d)"><span class="body">Promo ${ride.promo.code}</span><span class="tnum">− ${dh(disc)}</span></div>`:""}
+        <div class="divider"></div>
+        <div class="between"><span class="h3">Total ${m.type==='cash'?'(espèces)':''}</span><span class="h2 tnum">${dh(ride.fare)}</span></div>
+        <div class="row gap8" style="color:var(--muted)">${icon(m.type==='card'?'card':m.type==='wallet'?'wallet':'cash')}<span class="sub">${m.type==='cash'?'À régler en espèces au chauffeur':'Payé avec '+m.label}${m.type==='wallet'?` · solde ${dh(S.rider.wallet)}`:''}</span></div>
+      </div>
+      <div class="card stack gap12">
+        <div class="row gap12"><div class="avatar">${initials(c.name)}</div><div class="grow"><div class="h3">Notez ${c.name.split(" ")[0]}</div><div class="sub">${c.car} · ${c.plate}</div></div></div>
+        <div class="row gap8" id="stars" style="font-size:34px;color:var(--line-2);justify-content:center;cursor:pointer">
+          ${[1,2,3,4,5].map(i=>`<span data-s="${i}">★</span>`).join("")}
+        </div>
+        <div class="stack gap8">
+          <div class="label">Ajouter un pourboire</div>
+          <div class="row gap8" id="tips">
+            ${[0,5,10,20].map(t=>`<button class="chip grow" data-tip="${t}" style="justify-content:center">${t?dh(t):"Aucun"}</button>`).join("")}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pad"><button class="btn btn-primary" id="done">Terminer</button></div>
+  </div>`);
+  const starEls=[...n.querySelectorAll("#stars span")];
+  starEls.forEach(s=>s.onclick=()=>{ rated=+s.dataset.s; starEls.forEach((x,i)=>x.style.color = i<rated?"var(--gold)":"var(--line-2)"); });
+  n.querySelectorAll("[data-tip]").forEach(b=>b.onclick=()=>{ tip=+b.dataset.tip; n.querySelectorAll("[data-tip]").forEach(x=>x.classList.remove("on")); b.classList.add("on"); });
+  n.querySelector("#done").onclick=()=>{
+    // save to history
+    S.rider.rides.unshift({destId:ride.destId, pickupId:ride.pickupId, fare:ride.fare, date:ride.date, typeId:ride.typeId, rating:rated, tip});
+    if(tip && rr_method().type==="wallet"){ S.rider.wallet=Math.max(0,S.rider.wallet-tip); }
+    S.ride=null; save();
+    toast(rated?"Merci pour votre note !":"Course enregistrée");
+    go("rider_home");
+  };
+  return n;
+};
+
+/* ============================================================
+   MENU (rider)
+   ============================================================ */
+function openMenu(){
+  const rr=S.rider;
+  openModal(`<div class="grab"></div>
+    <div class="row gap12" style="margin-bottom:16px">
+      <div class="avatar" style="width:52px;height:52px;font-size:19px">${initials(rr.name)}</div>
+      <div class="grow"><div class="h2">${rr.name||"Passager"}</div><div class="sub">${rr.phone}</div></div>
+    </div>
+    <div class="card between" style="margin-bottom:14px;background:var(--green-t)">
+      <div class="row gap10">${icon("wallet")}<div><div class="label" style="color:var(--green-d)">Daba Pay</div><div class="h2 tnum">${dh(rr.wallet)}</div></div></div>
+      <button class="btn btn-primary btn-sm" id="topup">Recharger</button>
+    </div>
+    <div class="stack" id="mm">
+      <div class="list-row" data-go="history"><div class="list-ic">${icon("receipt")}</div><div class="grow"><div class="h3">Mes courses</div></div>${icon("chevr")}</div>
+      <div class="list-row" data-go="pay"><div class="list-ic">${icon("card")}</div><div class="grow"><div class="h3">Moyens de paiement</div></div>${icon("chevr")}</div>
+      <div class="list-row" data-go="driver"><div class="list-ic">${icon("steer")}</div><div class="grow"><div class="h3">Devenir chauffeur</div></div>${icon("chevr")}</div>
+      <div class="list-row" data-go="reset"><div class="list-ic">${icon("logout")}</div><div class="grow"><div class="h3">Réinitialiser la démo</div></div></div>
+    </div>`);
+  $("#topup").onclick=openTopup;
+  $("#mm").querySelectorAll("[data-go]").forEach(r=>r.onclick=()=>{
+    const g=r.dataset.go; closeModal();
+    if(g==="history")go("rider_history");
+    else if(g==="pay")openPayPicker();
+    else if(g==="driver"){ S.role="driver"; go(S.driver.approved?"driver_dash":(S.driver.applied?"driver_review":"driver_intro")); }
+    else if(g==="reset")resetDemo();
+  });
+}
+function openTopup(){
+  openModal(`<div class="grab"></div><h2 class="h2" style="margin-bottom:14px">Recharger Daba Pay</h2>
+    <p class="sub" style="margin-bottom:14px">Rechargement simulé.</p>
+    <div class="row gap8" id="amts">${[50,100,200,500].map(a=>`<button class="chip grow" data-a="${a}" style="justify-content:center">${dh(a)}</button>`).join("")}</div>
+    <button class="btn btn-primary" style="margin-top:16px" id="do" disabled>Recharger</button>`);
+  let amt=0;
+  $("#amts").querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{ amt=+b.dataset.a; $("#amts").querySelectorAll("[data-a]").forEach(x=>x.classList.remove("on")); b.classList.add("on"); $("#do").disabled=false; });
+  $("#do").onclick=()=>{
+    S.rider.wallet+=amt;
+    if(!S.rider.methods.some(m=>m.type==="wallet")) S.rider.methods.push({id:"wallet",type:"wallet",label:"Daba Pay"});
+    save(); closeModal(); toast("+"+dh(amt)+" ajoutés"); render();
+  };
+}
+SCREENS.rider_history = () => {
+  const rr=S.rider;
+  const n=el(`<div class="stack" style="height:100%">
+    <div class="topbar"><button class="iconbtn" id="bk">${icon("back")}</button><div class="h3">Mes courses</div></div>
+    <div class="pad stack gap10">
+      ${rr.rides.length? rr.rides.map(rd=>`<div class="card between">
+        <div class="row gap12"><div class="list-ic">${rideTypeById(rd.typeId).emoji}</div>
+        <div><div class="h3">${placeById(rd.destId).name}</div><div class="sub">${rd.date} · ${rideTypeById(rd.typeId).name}${rd.rating?` · vous avez noté ${rd.rating}★`:""}</div></div></div>
+        <div class="h3 tnum">${dh(rd.fare)}</div></div>`).join("")
+      : `<div class="card" style="text-align:center;padding:40px 20px"><div style="font-size:34px">🧭</div><h3 class="h3" style="margin:10px 0 4px">Aucune course</h3><p class="sub">Vos trajets apparaîtront ici.</p></div>`}
+    </div>
+  </div>`);
+  n.querySelector("#bk").onclick=()=>go("rider_home");
+  return n;
+};
+
+/* ============================================================
+   DRIVER (Captain) side
+   ============================================================ */
+SCREENS.driver_intro = () => {
+  const n=el(`<div class="hero">
+    <div style="position:relative;flex:1;display:flex;flex-direction:column;justify-content:center;padding:30px">
+      <div class="brandmark" style="margin-bottom:20px;background:#fff">${icon("steer")}</div>
+      <div class="eyebrow" style="color:#7ff0bd">Devenez chauffeur Daba</div>
+      <h1 class="h1" style="font-size:34px;color:#fff;margin:8px 0 14px">Roulez à Rabat.<br>Gagnez à votre rythme.</h1>
+      <div class="stack gap14" style="margin-top:10px">
+        ${[["💸","Encaissez chaque semaine","Espèces et paiements en ligne"],["🕒","Horaires flexibles","En ligne quand vous voulez"],["🛡️","Assistance 24/7","Support & sécurité intégrés"]].map(x=>`
+        <div class="row gap12"><div style="font-size:22px">${x[0]}</div><div><div class="h3" style="color:#fff">${x[1]}</div><div class="sub" style="color:#9fd3b7">${x[2]}</div></div></div>`).join("")}
+      </div>
+    </div>
+    <div style="position:relative;padding:22px;display:flex;flex-direction:column;gap:11px">
+      <button class="btn btn-primary" id="start">Commencer l'inscription</button>
+      ${S.driver.approved?`<button class="btn" id="signin" style="background:rgba(255,255,255,.1);color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.25)">J'ai déjà un compte</button>`:""}
+      <button class="linkbtn" id="bk" style="align-self:center;color:#7fae97">Retour</button>
+    </div>
+  </div>`);
+  n.querySelector("#start").onclick=()=>go("driver_reg");
+  n.querySelector("#bk").onclick=()=>go("splash");
+  if(n.querySelector("#signin")) n.querySelector("#signin").onclick=()=>go("driver_dash");
+  return n;
+};
+
+/* multi-step registration */
+S._regStep = 0;
+SCREENS.driver_reg = () => {
+  const step = S._regStep; const app=S.driver.app;
+  const titles=["Vos informations","Votre véhicule","Vos documents"];
+  const n=el(`<div class="stack" style="height:100%">
+    <div class="topbar">
+      <button class="iconbtn" id="bk">${icon("back")}</button>
+      <div class="grow"><div class="label">Étape ${step+1}/3</div><div class="h3">${titles[step]}</div></div>
+    </div>
+    <div class="pad"><div class="steps">${[0,1,2].map(i=>`<span class="${i<=step?'on':''}"></span>`).join("")}</div></div>
+    <div class="pad stack gap14 grow" id="form" style="overflow-y:auto"></div>
+    <div class="pad"><button class="btn btn-primary" id="next">${step<2?"Continuer":"Envoyer la demande"}</button></div>
+  </div>`);
+  const form=n.querySelector("#form");
+  if(step===0){
+    form.innerHTML=`
+      <div class="field"><label class="label">Nom complet</label><input class="input" id="f_name" placeholder="Ex. Youssef El Amrani" value="${app.name}"></div>
+      <div class="field"><label class="label">Téléphone</label><input class="input" id="f_phone" placeholder="+212 6 XX XX XX XX" value="${app.phone}"></div>
+      <div class="field"><label class="label">Email</label><input class="input" id="f_email" placeholder="vous@exemple.ma" value="${app.email}"></div>
+      <div class="field"><label class="label">Ville</label>
+        <select class="select" id="f_city"><option>Rabat</option><option>Salé</option><option>Témara</option></select></div>`;
+  } else if(step===1){
+    const yrs=[];for(let y=2024;y>=2012;y--)yrs.push(y);
+    form.innerHTML=`
+      <div class="row gap12">
+        <div class="field grow"><label class="label">Marque</label><input class="input" id="f_make" placeholder="Dacia" value="${app.make}"></div>
+        <div class="field grow"><label class="label">Modèle</label><input class="input" id="f_model" placeholder="Logan" value="${app.model}"></div>
+      </div>
+      <div class="row gap12">
+        <div class="field grow"><label class="label">Année</label><select class="select" id="f_year">${yrs.map(y=>`<option ${app.year==y?"selected":""}>${y}</option>`).join("")}</select></div>
+        <div class="field grow"><label class="label">Couleur</label><input class="input" id="f_color" placeholder="Blanc" value="${app.color}"></div>
+      </div>
+      <div class="field"><label class="label">Plaque d'immatriculation</label><input class="input" id="f_plate" placeholder="12345 | أ | 6" value="${app.plate}"></div>
+      <div class="card row gap10" style="background:var(--green-t)"><span style="color:var(--green-d)">${icon("shield")}</span><p class="sub" style="color:var(--green-d)">Votre véhicule doit avoir moins de 12 ans et une assurance valide.</p></div>`;
+  } else {
+    const docs=[["permis","Permis de conduire",icon("doc")],["grise","Carte grise",icon("doc")],["assurance","Attestation d'assurance",icon("shield")],["photo","Photo de profil",icon("user")]];
+    form.innerHTML = docs.map(d=>`<div class="card between" data-doc="${d[0]}" style="cursor:pointer">
+      <div class="row gap12"><div class="list-ic">${d[2]}</div><div><div class="h3">${d[1]}</div><div class="sub doc-status">${app.docs[d[0]]?"Téléversé ✓":"Appuyez pour téléverser"}</div></div></div>
+      <span class="doc-ic">${app.docs[d[0]]?`<span style="color:var(--green-d)">${icon("check")}</span>`:icon("plus")}</span>
+    </div>`).join("") + `<p class="sub" style="text-align:center">Téléversement simulé — appuyez pour marquer comme fourni.</p>`;
+    form.querySelectorAll("[data-doc]").forEach(c=>c.onclick=()=>{
+      const k=c.dataset.doc; app.docs[k]=!app.docs[k]; save();
+      c.querySelector(".doc-status").textContent = app.docs[k]?"Téléversé ✓":"Appuyez pour téléverser";
+      c.querySelector(".doc-ic").innerHTML = app.docs[k]?`<span style="color:var(--green-d)">${icon("check")}</span>`:icon("plus");
+    });
+  }
+  n.querySelector("#bk").onclick=()=>{ if(step===0){go("driver_intro");} else {S._regStep--; render();} };
+  n.querySelector("#next").onclick=()=>{
+    if(step===0){
+      const g=id=>form.querySelector(id).value.trim();
+      app.name=g("#f_name"); app.phone=g("#f_phone"); app.email=g("#f_email"); app.city=form.querySelector("#f_city").value;
+      if(!app.name||app.phone.replace(/\D/g,"").length<6){ toast("Renseignez nom et téléphone"); return; }
+      S._regStep=1; save(); render();
+    } else if(step===1){
+      const g=id=>form.querySelector(id).value.trim();
+      app.make=g("#f_make"); app.model=g("#f_model"); app.year=form.querySelector("#f_year").value; app.color=g("#f_color"); app.plate=g("#f_plate");
+      if(!app.make||!app.model||!app.plate){ toast("Complétez les infos du véhicule"); return; }
+      S._regStep=2; save(); render();
+    } else {
+      const done=Object.values(app.docs).filter(Boolean).length;
+      if(done<4){ toast("Téléversez les 4 documents ("+done+"/4)"); return; }
+      S.driver.applied=true; save(); go("driver_review");
+    }
+  };
+  return n;
+};
+
+/* application review -> auto approve */
+SCREENS.driver_review = () => {
+  const app=S.driver.app;
+  const n=el(`<div class="stack" style="height:100%;background:var(--bg)">
+    <div class="pad" style="padding-top:40px;text-align:center">
+      <div style="display:flex;justify-content:center;margin-bottom:16px">
+        <div id="revic" style="width:70px;height:70px;border-radius:50%;background:#FEF6E0;display:flex;align-items:center;justify-content:center;color:var(--amber)">
+          <svg width="34" height="34" viewBox="0 0 24 24" class="spin" fill="none" stroke="var(--amber)" stroke-width="2.4" stroke-linecap="round"><path d="M12 3a9 9 0 1 0 9 9" opacity=".9"/></svg>
+        </div>
+      </div>
+      <h1 class="h1" id="revtitle">Demande en cours d'examen</h1>
+      <p class="sub" id="revsub" style="margin-top:8px;max-width:34ch;margin-inline:auto">Nous vérifions vos documents. Cela prend généralement quelques minutes.</p>
+    </div>
+    <div class="pad grow">
+      <div class="card stack gap12">
+        <div class="label">Récapitulatif</div>
+        <div class="between"><span class="body">Chauffeur</span><span class="h3">${app.name}</span></div>
+        <div class="between"><span class="body">Véhicule</span><span class="h3">${app.make} ${app.model} ${app.year}</span></div>
+        <div class="between"><span class="body">Plaque</span><span class="h3 tnum">${app.plate}</span></div>
+        <div class="between"><span class="body">Ville</span><span class="h3">${app.city}</span></div>
+        <div class="divider"></div>
+        <div class="between"><span class="body">Documents</span><span class="pill pill-green">4/4 fournis</span></div>
+      </div>
+    </div>
+    <div class="pad"><button class="btn btn-primary" id="cta" disabled style="opacity:.5">Validation en cours…</button></div>
+  </div>`);
+  setTimeout(()=>{
+    S.driver.approved=true; S.driver.signedIn=true; save();
+    const ic=n.querySelector("#revic"); if(!ic) return;
+    ic.style.background="var(--green-t)"; ic.innerHTML=`<span style="color:var(--green-d)">${icon("check")}</span>`;
+    n.querySelector("#revtitle").textContent="Vous êtes approuvé ! 🎉";
+    n.querySelector("#revsub").textContent="Bienvenue chez Daba. Passez en ligne pour recevoir vos premières courses.";
+    const cta=n.querySelector("#cta"); cta.disabled=false; cta.style.opacity="1"; cta.textContent="Accéder au tableau de bord";
+    cta.onclick=()=>go("driver_dash");
+  }, reduceMotion?500:3000);
+  return n;
+};
+
+/* Driver dashboard */
+SCREENS.driver_dash = () => {
+  const dv=S.driver; const app=dv.app;
+  const n=el(`<div style="position:relative;height:100%">
+    <div class="mapwrap map-night">${mapSVG({night:true})}</div>
+    <div style="position:absolute;top:0;left:0;right:0;padding:12px 14px;display:flex;justify-content:space-between;z-index:10">
+      <button class="iconbtn" id="menu">${icon("menu")}</button>
+      <div class="iconbtn" style="width:auto;padding:0 12px;gap:8px;background:var(--ink);color:#fff">${icon("star")}<span class="tnum" style="font-size:13px;font-weight:700">${dv.rating.toFixed(2)}</span></div>
+    </div>
+    <div style="position:absolute;top:64px;left:0;right:0;text-align:center;z-index:10;color:#fff" id="onlinebanner"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="between" style="margin-bottom:14px">
+        <div class="row gap12"><div class="avatar">${initials(app.name)}</div>
+          <div><div class="h3">${app.name.split(" ")[0]||"Chauffeur"}</div><div class="sub">${app.make} ${app.model} · ${app.plate}</div></div>
+        </div>
+        <div class="toggle ${dv.online?'on':''}" id="toggle" role="switch" aria-checked="${dv.online}"></div>
+      </div>
+      <div class="row gap10" style="margin-bottom:14px">
+        <div class="card grow" style="text-align:center;padding:14px"><div class="label">Aujourd'hui</div><div class="h2 tnum">${dh(dv.earningsToday)}</div></div>
+        <div class="card grow" style="text-align:center;padding:14px"><div class="label">Courses</div><div class="h2 tnum">${dv.tripsToday}</div></div>
+        <div class="card grow" style="text-align:center;padding:14px"><div class="label">Note</div><div class="h2 tnum">${dv.rating.toFixed(2)}</div></div>
+      </div>
+      <div id="statusline" class="card" style="text-align:center;padding:16px">
+        ${dv.online?`<div class="row gap10" style="justify-content:center"><span class="dotpulse"></span><span class="h3">En ligne · recherche de courses…</span></div>`
+          :`<div><div class="h3" style="margin-bottom:4px">Vous êtes hors ligne</div><p class="sub">Passez en ligne pour recevoir des demandes de course.</p></div>`}
+      </div>
+      <button class="btn btn-ghost" id="earn" style="margin-top:14px">${icon("receipt")} Voir mes gains</button>
+    </div>
+  </div>`);
+  n.querySelector("#menu").onclick=openDriverMenu;
+  n.querySelector("#earn").onclick=()=>go("driver_earnings");
+  n.querySelector("#toggle").onclick=(e)=>{
+    dv.online=!dv.online; save();
+    if(dv.online){ toast("Vous êtes en ligne"); scheduleJob(); render(); }
+    else { clearTimeout(jobTimer); toast("Vous êtes hors ligne"); render(); }
+  };
+  if(dv.online) scheduleJob();
+  return n;
+};
+function scheduleJob(){
+  clearTimeout(jobTimer);
+  window.jobTimer = setTimeout(()=>{
+    if(!S.driver.online || S.job) return;
+    // build a mock request
+    const pool=PLACES.filter(p=>p.id!=="agdal");
+    const pick=PLACES[Math.floor(Math.random()*PLACES.length)];
+    let dest=pool[Math.floor(Math.random()*pool.length)]; if(dest.id===pick.id) dest=placeById("hayriad");
+    const km=distanceKm(pick,dest);
+    const fare=fareFor("go",km);
+    S.job={ pickId:pick.id, destId:dest.id, km, fare, riderName:["Sara","Amine","Nour","Omar","Lina"][Math.floor(Math.random()*5)], riderRating:(4.6+Math.random()*0.4).toFixed(2), status:"offer" };
+    save(); go("driver_offer");
+  }, reduceMotion?700:3500);
+}
+window.jobTimer=null;
+
+/* incoming ride offer with countdown */
+SCREENS.driver_offer = () => {
+  const j=S.job; const pick=placeById(j.pickId), dest=placeById(j.destId);
+  const n=el(`<div style="position:relative;height:100%">
+    <div class="mapwrap map-night">${mapSVG({night:true})}</div>
+    <div class="sheet pulse" style="border-top:3px solid var(--green)">
+      <div class="between" style="margin-bottom:12px">
+        <span class="pill pill-green">Nouvelle course</span>
+        <div class="row gap8"><span class="sub">Auto-refus dans</span><span class="h3 tnum" id="cd">10</span></div>
+      </div>
+      <div class="row gap12" style="margin-bottom:14px">
+        <div class="avatar">${initials(j.riderName)}</div>
+        <div class="grow"><div class="h3">${j.riderName}</div><div class="sub">${starRow(+j.riderRating)}</div></div>
+        <div style="text-align:right"><div class="h2 tnum">${dh(j.fare)}</div><div class="sub">${dh1(j.km)} km</div></div>
+      </div>
+      <div class="card stack gap10" style="margin-bottom:14px">
+        <div class="row gap12"><span class="dotpulse" style="width:10px;height:10px"></span><div><div class="label">Prise en charge</div><div class="h3">${pick.name}</div></div></div>
+        <div class="divider"></div>
+        <div class="row gap12"><span style="color:var(--danger)">${icon("pin")}</span><div><div class="label">Destination</div><div class="h3">${dest.name}</div></div></div>
+      </div>
+      <div class="row gap10">
+        <button class="btn btn-ghost" id="decline" style="flex:.7">Refuser</button>
+        <button class="btn btn-primary grow" id="accept">Accepter</button>
+      </div>
+    </div>
+  </div>`);
+  setTimeout(()=>{ const d=document.getElementById("map-dyn"); if(d)d.innerHTML=pinMarker(pick.x,pick.y,"#00C46A")+pinMarker(dest.x,dest.y,"#E5484D"); },0);
+  let t=10; const cd=n.querySelector("#cd");
+  window.offerTimer=setInterval(()=>{ t--; if(cd)cd.textContent=t; if(t<=0){ clearInterval(offerTimer); declineJob(); } }, reduceMotion?400:1000);
+  n.querySelector("#accept").onclick=()=>{ clearInterval(offerTimer); S.job.status="topickup"; save(); go("driver_job"); };
+  n.querySelector("#decline").onclick=()=>{ clearInterval(offerTimer); declineJob(); };
+  return n;
+};
+function declineJob(){ S.job=null; save(); toast("Course refusée"); go("driver_dash"); if(S.driver.online) scheduleJob(); }
+
+/* active job: to pickup -> in trip -> complete */
+SCREENS.driver_job = () => {
+  const j=S.job; const pick=placeById(j.pickId), dest=placeById(j.destId);
+  const toPickup = j.status==="topickup";
+  const n=el(`<div style="position:relative;height:100%">
+    <div class="mapwrap map-night">${mapSVG({night:true})}</div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="between" style="margin-bottom:12px">
+        <span class="pill ${toPickup?'pill-gold':'pill-green'}">${toPickup?"En route vers le passager":"Course en cours"}</span>
+        <span class="h3 tnum">${dh(j.fare)}</span>
+      </div>
+      <div class="card between" style="margin-bottom:14px">
+        <div class="row gap12"><div class="avatar">${initials(j.riderName)}</div>
+        <div><div class="h3">${j.riderName}</div><div class="sub">${toPickup?"À "+pick.name:"Vers "+dest.name}</div></div></div>
+        <button class="iconbtn" id="callr">${icon("phone")}</button>
+      </div>
+      <button class="btn btn-ghost" id="navi" style="margin-bottom:10px">${icon("nav")} Naviguer ${toPickup?"vers la prise en charge":"vers la destination"}</button>
+      <button class="btn btn-primary" id="act">${toPickup?"Démarrer la course":"Terminer la course"}</button>
+    </div>
+  </div>`);
+  n.querySelector("#callr").onclick=()=>toast("Appel du passager… (démo)");
+  n.querySelector("#navi").onclick=()=>toast("Ouverture de la navigation… (démo)");
+  // draw + animate captain marker
+  setTimeout(()=>{
+    const d=document.getElementById("map-dyn"); if(!d) return;
+    if(toPickup){
+      const startPos={x:pick.x-45,y:pick.y+40};
+      d.innerHTML=pinMarker(pick.x,pick.y,"#00C46A","Passager")+carMarker(startPos.x,startPos.y,0);
+      animateCar(startPos,pick, reduceMotion?300:3000, ()=>{});
+    } else {
+      d.innerHTML=pinMarker(pick.x,pick.y,"#00C46A")+pinMarker(dest.x,dest.y,"#E5484D","Arrivée")+carMarker(pick.x,pick.y,0);
+      animateCar(pick,dest, reduceMotion?300:4600, ()=>{});
+    }
+  },0);
+  n.querySelector("#act").onclick=()=>{
+    if(toPickup){ S.job.status="intrip"; save(); toast("Passager à bord"); render(); }
+    else { completeJob(); }
+  };
+  return n;
+};
+function completeJob(){
+  const j=S.job;
+  S.driver.earningsToday += j.fare;
+  S.driver.tripsToday += 1;
+  S.driver.trips.unshift({destId:j.destId, pickId:j.pickId, fare:j.fare, when:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})});
+  S.job=null; save();
+  go("driver_complete");
+}
+SCREENS.driver_complete = () => {
+  const last=S.driver.trips[0]; const dv=S.driver;
+  const n=el(`<div class="stack" style="height:100%;background:var(--bg)">
+    <div style="background:linear-gradient(160deg,#063d2a,#0b1512);color:#fff;padding:30px 20px;text-align:center">
+      <div style="display:flex;justify-content:center;margin-bottom:10px"><div style="width:56px;height:56px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;color:#04120b">${icon("check")}</div></div>
+      <div class="label" style="color:#9fd3b7">Course terminée · +</div>
+      <h1 class="h1" style="color:#fff;font-size:40px" class="tnum">${dh(last.fare)}</h1>
+      <p class="sub" style="color:#bfe9d3">Encaissé en espèces</p>
+    </div>
+    <div class="pad grow">
+      <div class="card between"><span class="body">Gains du jour</span><span class="h2 tnum">${dh(dv.earningsToday)}</span></div>
+      <div class="card between" style="margin-top:10px"><span class="body">Courses aujourd'hui</span><span class="h2 tnum">${dv.tripsToday}</span></div>
+    </div>
+    <div class="pad stack gap10">
+      <button class="btn btn-primary" id="cont">Continuer à conduire</button>
+      <button class="btn btn-ghost" id="stop">Passer hors ligne</button>
+    </div>
+  </div>`);
+  n.querySelector("#cont").onclick=()=>{ go("driver_dash"); if(S.driver.online) scheduleJob(); };
+  n.querySelector("#stop").onclick=()=>{ S.driver.online=false; save(); go("driver_dash"); };
+  return n;
+};
+SCREENS.driver_earnings = () => {
+  const dv=S.driver;
+  const week=[120,0,85,210,340,dv.earningsToday||60,0]; const max=Math.max(...week,100);
+  const days=["L","M","M","J","V","S","D"];
+  const n=el(`<div class="stack" style="height:100%">
+    <div class="topbar"><button class="iconbtn" id="bk">${icon("back")}</button><div class="h3">Mes gains</div></div>
+    <div class="pad stack gap14">
+      <div class="card">
+        <div class="label">Cette semaine</div>
+        <div class="h1 tnum" style="margin:4px 0 14px">${dh(week.reduce((a,b)=>a+b,0))}</div>
+        <div class="mini-bar">${week.map((v,i)=>`<div style="height:100%"><span style="height:${Math.round(v/max*100)}%"></span></div>`).join("")}</div>
+        <div class="row" style="justify-content:space-between;margin-top:6px">${days.map(d=>`<span class="sub" style="flex:1;text-align:center">${d}</span>`).join("")}</div>
+      </div>
+      <div class="card stack gap10">
+        <div class="between"><div class="label">Courses récentes</div><span class="pill pill-green">${dv.tripsToday} aujourd'hui</span></div>
+        ${dv.trips.length? dv.trips.map(t=>`<div class="between"><div class="row gap10">${icon("car")}<div><div class="h3">${placeById(t.destId).name}</div><div class="sub">${t.when}</div></div></div><div class="h3 tnum">+${dh(t.fare)}</div></div>`).join("<div class='divider'></div>")
+        : `<p class="sub">Aucune course pour le moment.</p>`}
+      </div>
+    </div>
+  </div>`);
+  n.querySelector("#bk").onclick=()=>go("driver_dash");
+  return n;
+};
+function openDriverMenu(){
+  const dv=S.driver, app=dv.app;
+  openModal(`<div class="grab"></div>
+    <div class="row gap12" style="margin-bottom:16px">
+      <div class="avatar" style="width:52px;height:52px;font-size:19px">${initials(app.name)}</div>
+      <div class="grow"><div class="h2">${app.name||"Chauffeur"}</div><div class="sub">${starRow(dv.rating)} · ${dv.trips.length} courses</div></div>
+    </div>
+    <div class="stack" id="dm">
+      <div class="list-row" data-go="earnings"><div class="list-ic">${icon("receipt")}</div><div class="grow"><div class="h3">Gains</div></div>${icon("chevr")}</div>
+      <div class="list-row" data-go="rider"><div class="list-ic">${icon("user")}</div><div class="grow"><div class="h3">Passer en mode passager</div></div>${icon("chevr")}</div>
+      <div class="list-row" data-go="reset"><div class="list-ic">${icon("logout")}</div><div class="grow"><div class="h3">Réinitialiser la démo</div></div></div>
+    </div>`);
+  $("#dm").querySelectorAll("[data-go]").forEach(r=>r.onclick=()=>{
+    const g=r.dataset.go; closeModal();
+    if(g==="earnings")go("driver_earnings");
+    else if(g==="rider"){ S.role="rider"; go(S.rider.signedIn?"rider_home":"rider_auth"); }
+    else if(g==="reset")resetDemo();
+  });
+}
+
+/* ---------------- boot ---------------- */
+function tickClock(){ const d=new Date(); $("#sb-time").textContent = d.getHours()+":"+String(d.getMinutes()).padStart(2,"0"); }
+tickClock(); setInterval(tickClock,10000);
+render();
+</script>
+</body>
+</html>
