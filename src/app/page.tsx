@@ -51,11 +51,20 @@ export default function HomePage() {
       {/* Product grid */}
       <section id="shop" className="mx-auto max-w-content px-4 py-12">
         <h2 className="mb-6 text-2xl font-bold text-neutral-900">Trending now</h2>
-        <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
-          {items.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {items.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 px-6 py-16 text-center">
+            <p className="text-lg font-semibold text-neutral-800">New arrivals dropping soon</p>
+            <p className="mx-auto mt-2 max-w-md text-sm text-neutral-500">
+              We&apos;re stocking the shelves right now. Check back shortly — the collection goes live any moment.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
+            {items.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

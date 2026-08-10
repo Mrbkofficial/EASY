@@ -4,8 +4,8 @@
 // ---------------------------------------------------------------------------
 
 export const storeConfig = {
-  name: process.env.NEXT_PUBLIC_STORE_NAME || 'Nova & Co.',
-  tagline: 'Everyday finds, thoughtfully curated.',
+  name: process.env.NEXT_PUBLIC_STORE_NAME || 'The Pit Stop',
+  tagline: 'Your one-stop shop for gear that keeps you moving.',
   // ISO currency code + symbol used across the storefront.
   currency: (process.env.NEXT_PUBLIC_CURRENCY || 'usd').toLowerCase(),
   currencySymbol: process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '$',
