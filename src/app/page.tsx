@@ -18,8 +18,8 @@ export default function HomePage() {
             {storeConfig.tagline}
           </h1>
           <p className="mt-4 max-w-xl text-lg text-neutral-600">
-            Handpicked gadgets, home upgrades and everyday essentials — shipped worldwide with secure
-            Apple&nbsp;Pay, card and PayPal checkout.
+            Caps, tees, models, collectibles and trackside gear for motorsport fans — shipped worldwide
+            with secure Apple&nbsp;Pay, card and PayPal checkout.
           </p>
           <a
             href="#shop"

@@ -5,19 +5,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // The store's accent colour. Change this one value to re-skin the site.
+        // The store's accent colour — racing red for the F1 theme.
+        // Change this one block to re-skin the whole site.
         brand: {
-          50: '#f2f7f5',
-          100: '#dfece7',
-          200: '#bfd9cf',
-          300: '#93bdae',
-          400: '#659c89',
-          500: '#47806e',
-          600: '#356658',
-          700: '#2b5249',
-          800: '#25423b',
-          900: '#213832',
-          950: '#0f1f1b',
+          50: '#fef2f2',
+          100: '#fee2e2',
+          200: '#fecaca',
+          300: '#fca5a5',
+          400: '#f87171',
+          500: '#ef4444',
+          600: '#dc2626',
+          700: '#b91c1c',
+          800: '#991b1b',
+          900: '#7f1d1d',
+          950: '#450a0a',
         },
       },
       fontFamily: {
