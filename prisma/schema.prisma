@@ -1,4 +1,8 @@
-// Easy — personal assistant app data model.
+// Nova Storefront — data model.
+// Products live in source control (src/data/products.ts). The database only
+// stores orders, so nothing customer-facing depends on an external service
+// being reachable at build time.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,195 +12,64 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ---------- Auth (NextAuth.js) ----------
-
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  createdAt     DateTime  @default(now())
-
-  defaultMode Mode @default(PERSONAL)
-
-  accounts             Account[]
-  sessions              Session[]
-  tasks                 Task[]
-  budgetEntries          BudgetEntry[]
-  budgetCategories        BudgetCategory[]
-  appleMailAccounts      AppleMailAccount[]
-  pushSubscriptions      PushSubscription[]
-  notificationPreference NotificationPreference?
-}
-
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
-}
-
-// ---------- Core enums ----------
-
-enum Mode {
-  PERSONAL
-  WORK
-}
-
-enum Priority {
-  LOW
-  MEDIUM
-  HIGH
-}
-
-enum Recurrence {
-  NONE
-  DAILY
-  WEEKLY
-  MONTHLY
-  YEARLY
-}
-
-// ---------- Tasks & Reminders ----------
-
-model Task {
-  id          String     @id @default(cuid())
-  userId      String
-  mode        Mode       @default(PERSONAL)
-  title       String
-  notes       String?    @db.Text
-  dueAt       DateTime?
-  allDay      Boolean    @default(false)
-  completed   Boolean    @default(false)
-  completedAt DateTime?
-  priority    Priority   @default(MEDIUM)
-  category    String?
-  color       String?
-  recurrence  Recurrence @default(NONE)
-
-  // Reminder alerts: minutes-before-due offsets, e.g. [0, 30, 1440]
-  reminderOffsets Int[]  @default([])
-  lastNotifiedAt  DateTime?
-
-  // Optional link to a synced calendar event
-  calendarProvider  String? // "google" | "outlook"
-  calendarEventId   String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, mode, dueAt])
-  @@index([userId, completed])
-}
-
-// ---------- Budget ----------
-
-model BudgetCategory {
-  id          String  @id @default(cuid())
-  userId      String
-  mode        Mode    @default(PERSONAL)
-  name        String
-  color       String  @default("#6366f1")
-  monthlyLimit Decimal? @db.Decimal(12, 2)
-
-  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entries BudgetEntry[]
-
-  @@unique([userId, mode, name])
-}
-
-model BudgetEntry {
-  id         String   @id @default(cuid())
-  userId     String
-  mode       Mode     @default(PERSONAL)
-  amount     Decimal  @db.Decimal(12, 2)
-  currency   String   @default("USD")
-  merchant   String?
-  note       String?
-  date       DateTime @default(now())
-  categoryId String?
-  receiptUrl String?
-  source     String   @default("manual") // "manual" | "receipt"
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category BudgetCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-
-  @@index([userId, mode, date])
-}
-
-// ---------- Apple / iCloud Mail (IMAP) ----------
-
-model AppleMailAccount {
-  id                    String @id @default(cuid())
-  userId                String
-  email                 String
-  encryptedAppPassword  String @db.Text
-  imapHost              String @default("imap.mail.me.com")
-  imapPort              Int    @default(993)
-  smtpHost              String @default("smtp.mail.me.com")
-  smtpPort              Int    @default(587)
-
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, email])
-}
-
-// ---------- Notifications ----------
-
-model PushSubscription {
+model Order {
   id        String   @id @default(cuid())
-  userId    String
-  endpoint  String   @unique
-  p256dh    String
-  auth      String
+  // Short human-friendly reference shown to the customer, e.g. "NV-8F3K2Q".
+  reference String   @unique
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status  OrderStatus @default(PENDING)
+  // How the customer paid: "stripe" or "paypal".
+  provider String?
+  // Provider-side id (Stripe session id / PayPal order id) for reconciliation.
+  providerRef String?
+
+  // Amounts are stored in minor units (cents) to avoid floating point errors.
+  subtotal Int
+  shipping Int    @default(0)
+  total    Int
+  currency String @default("usd")
+
+  // Customer + shipping details (collected at checkout).
+  email     String
+  name      String
+  phone     String?
+  address1  String
+  address2  String?
+  city      String
+  state     String?
+  postal    String
+  country   String
+
+  // Fulfillment: has the owner placed the matching supplier order yet?
+  fulfilled       Boolean   @default(false)
+  fulfilledAt     DateTime?
+  fulfillmentNote String?
+
+  items OrderItem[]
 }
 
-model NotificationPreference {
-  id                  String  @id @default(cuid())
-  userId              String  @unique
-  pushEnabled         Boolean @default(true)
-  defaultReminderMins Int     @default(30)
-  quietHoursStart     Int? // hour 0-23
-  quietHoursEnd       Int?
+model OrderItem {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Snapshot of the product at purchase time (products can change later).
+  productId String
+  title     String
+  image     String
+  variant   String?
+  unitPrice Int // minor units
+  quantity  Int
+  // Private supplier link — only ever shown in the owner's admin dashboard.
+  sourceUrl String?
+}
+
+enum OrderStatus {
+  PENDING // checkout created, payment not yet confirmed
+  PAID // payment captured — this is when the owner gets notified
+  FULFILLED // supplier order placed
+  CANCELLED
+  REFUNDED
 }

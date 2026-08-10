@@ -1,6 +1,6 @@
 // Runs during `npm run build` so the database schema is created/updated
 // automatically on every deploy — no manual `prisma db push` needed.
-// Skips quietly if DATABASE_URL isn't set yet (e.g. before Postgres storage is attached).
+// Skips quietly if DATABASE_URL isn't set yet (e.g. before Postgres is attached).
 const { execSync } = require('child_process');
 
 if (!process.env.DATABASE_URL) {

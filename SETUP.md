@@ -1,159 +1,119 @@
-# Setting up Easy
+# Nova Storefront — setup guide
 
-Easy is a Next.js app (frontend + API routes in one project) meant to be deployed on
-**Vercel**, with a Postgres database, and connected to your Google, Microsoft and
-Apple Mail accounts. None of the third-party integrations will work until you provide
-your own credentials below — that's expected, this is a one-time setup.
+A standalone e-commerce store. Customers browse products, pay with **Apple Pay /
+card (Stripe)** or **PayPal**, and the moment a payment clears you get an instant
+**Telegram** message with the item(s) and the customer's shipping address. You then
+place the matching order with your supplier and ship straight to the customer.
 
-Budget ~30-45 minutes the first time. You only do this once.
+Nothing on the public site references any supplier — it's a fully standalone brand.
+The private supplier links live only in your password-protected **admin dashboard**.
+
+> **How fulfilment works (important):** this store is *semi-automated* by design.
+> There is no public API to place supplier orders programmatically, and automating a
+> supplier's website against your account risks getting it banned. Instead, every paid
+> order lands in `/admin` with a one-click "Order" button (opens the exact product) and
+> a "Copy address" button. Placing the order takes ~60 seconds and keeps your supplier
+> account safe.
+
+---
 
 ## 0. Prerequisites
 
-- A [Vercel](https://vercel.com) account (free tier is enough), with this GitHub repo connected.
-- A Google account and a Microsoft account (whichever ones you want the app to read/write).
-- An Apple ID with iCloud Mail, if you want Apple Mail support.
+- A [Vercel](https://vercel.com) account (free tier is fine) with this repo connected — or any Node host.
+- A Postgres database (Vercel Postgres, Neon, or Supabase — all have free tiers).
+- A [Stripe](https://dashboard.stripe.com) account (for cards + Apple Pay).
+- A [PayPal Developer](https://developer.paypal.com) account.
+- The Telegram app on your phone.
 
-## 1. Create the database
+Budget ~30–40 minutes the first time.
 
-1. In your Vercel project → **Storage** tab → **Create Database** → **Postgres** (Neon).
-2. Once created, Vercel automatically adds a `DATABASE_URL` (or `POSTGRES_PRISMA_URL`) env
-   var to your project. Copy it into `DATABASE_URL` in your env vars if it isn't named exactly
-   that — Prisma expects the variable to be called `DATABASE_URL`.
-3. After your first deploy (or locally with the var set), run:
-   ```bash
-   npx prisma db push
-   ```
-   This creates all the tables. Re-run it any time `prisma/schema.prisma` changes.
+## 1. Deploy & database
 
-## 2. Create a Vercel Blob store (for receipt photos)
+1. Import the repo into Vercel.
+2. **Storage → Create Database → Postgres.** Vercel adds `DATABASE_URL` automatically.
+3. The build runs `prisma db push` for you, so tables are created on first deploy.
+   (Locally: `npm install`, set `DATABASE_URL` in `.env`, then `npm run db:push`.)
 
-Storage tab → **Create Database** → **Blob**. Link it to the project — Vercel adds
-`BLOB_READ_WRITE_TOKEN` automatically. No manual copying needed.
+## 2. Branding
 
-## 3. Generate app secrets
+Set these env vars (all optional — defaults shown in `.env.example`):
 
-Run these locally and paste the output into your env vars:
+- `NEXT_PUBLIC_STORE_NAME`, `NEXT_PUBLIC_SUPPORT_EMAIL`
+- `NEXT_PUBLIC_CURRENCY` / `NEXT_PUBLIC_CURRENCY_SYMBOL`
+- `NEXT_PUBLIC_SHIPPING_CENTS`, `NEXT_PUBLIC_FREE_SHIP_CENTS`
+- `NEXT_PUBLIC_SITE_URL` — your final domain (used in notification links & redirects).
 
-```bash
-openssl rand -base64 32   # -> NEXTAUTH_SECRET
-openssl rand -base64 32   # -> APPLE_MAIL_ENCRYPTION_KEY
-openssl rand -base64 24   # -> CRON_SECRET
-```
+The accent colour lives in `tailwind.config.ts` under `colors.brand` — change that one
+block to re-skin the whole site.
 
-For push notifications:
+## 3. Stripe (Apple Pay + cards)
 
-```bash
-npm install
-npx web-push generate-vapid-keys
-```
+1. Stripe Dashboard → **Developers → API keys** → copy the **Secret key** into `STRIPE_SECRET_KEY`.
+2. **Developers → Webhooks → Add endpoint:**
+   - URL: `https://YOUR-DOMAIN/api/webhooks/stripe`
+   - Event: `checkout.session.completed`
+   - Copy the **Signing secret** into `STRIPE_WEBHOOK_SECRET`.
+3. Apple Pay & Google Pay appear automatically on Stripe's hosted checkout — no extra
+   config needed. (To offer Apple Pay on your *own* domain later you'd register it in
+   Stripe → Payment method domains; the hosted page needs nothing.)
 
-Copy the printed `Public Key` into `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and `Private Key` into
-`VAPID_PRIVATE_KEY`. Set `VAPID_SUBJECT` to `mailto:your-email@example.com`.
+## 4. PayPal
 
-## 4. Google Cloud — Gmail + Calendar (Personal mode)
+1. [developer.paypal.com](https://developer.paypal.com) → **Apps & Credentials**.
+2. Create an app; copy **Client ID** → `PAYPAL_CLIENT_ID` **and** `NEXT_PUBLIC_PAYPAL_CLIENT_ID`.
+3. Copy **Secret** → `PAYPAL_CLIENT_SECRET`.
+4. Keep `PAYPAL_ENV="sandbox"` while testing; switch to `"live"` with live credentials to go live.
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/) → create a new project
-   (e.g. "Easy Assistant").
-2. **APIs & Services → Library**: enable the **Gmail API** and the **Google Calendar API**.
-3. **APIs & Services → OAuth consent screen**:
-   - User type: External (or Internal if you have Workspace).
-   - Add your own Google account as a **test user** (required while the app is unpublished —
-     that's fine for personal use, you never need to submit for verification).
-   - Scopes: you don't need to add them here; they're requested at sign-in time.
-4. **APIs & Services → Credentials → Create Credentials → OAuth client ID**:
-   - Application type: **Web application**.
-   - Authorized redirect URIs — add **both** of these (replace with your real domain):
-     ```
-     https://your-app.vercel.app/api/auth/callback/google
-     https://your-app.vercel.app/api/connections/google/callback
-     ```
-   - Save. Copy the **Client ID** and **Client Secret** into `GOOGLE_CLIENT_ID` /
-     `GOOGLE_CLIENT_SECRET`.
+If PayPal env vars are absent the PayPal button simply doesn't show — the rest of the
+store still works.
 
-## 5. Microsoft Azure AD — Outlook Mail + Calendar (Work mode)
+## 5. Telegram sale notifications
 
-1. Go to [Azure Portal](https://portal.azure.com/) → **Microsoft Entra ID** →
-   **App registrations** → **New registration**.
-2. Name it "Easy Assistant". Supported account types: usually
-   "Accounts in any organizational directory and personal Microsoft accounts" unless your
-   work tenant restricts this — ask your IT admin if unsure.
-3. Redirect URI: platform **Web**, add:
-   ```
-   https://your-app.vercel.app/api/auth/callback/azure-ad
-   ```
-   Then go to **Authentication** after creation and add a second redirect URI:
-   ```
-   https://your-app.vercel.app/api/connections/microsoft/callback
-   ```
-4. **Certificates & secrets → New client secret** — copy the **value** immediately (it's
-   only shown once) into `AZURE_AD_CLIENT_SECRET`.
-5. Copy **Application (client) ID** into `AZURE_AD_CLIENT_ID`.
-6. Copy **Directory (tenant) ID** into `AZURE_AD_TENANT_ID` — or leave it as `common` if you
-   want any Microsoft account (personal or work) to be able to sign in.
-7. **API permissions → Add a permission → Microsoft Graph → Delegated permissions**, add:
-   `Mail.ReadWrite`, `Mail.Send`, `Calendars.ReadWrite`, `offline_access`, `openid`,
-   `profile`, `email`. If your tenant requires admin consent, click **Grant admin consent**
-   (or ask whoever manages your work Microsoft 365 to do so).
+1. In Telegram, message **@BotFather** → `/newbot` → follow prompts → copy the **token**
+   into `TELEGRAM_BOT_TOKEN`.
+2. Open a chat with your new bot and send it any message (e.g. "hi").
+3. Visit `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` in a browser and copy the
+   `"chat":{"id": ...}` number into `TELEGRAM_CHAT_ID`.
 
-## 6. Apple / iCloud Mail
+Now every paid order pings your phone instantly. (No token set = notifications are
+skipped; checkout still works.)
 
-No developer setup needed — this uses IMAP with an **app-specific password**, generated
-per-user, right from the app's Settings page:
+## 6. Admin dashboard
 
-1. Go to [appleid.apple.com](https://appleid.apple.com) → **Sign-In and Security** →
-   **App-Specific Passwords** → generate one, name it "Easy".
-2. In the app: **Settings → Apple / iCloud Mail**, enter your iCloud email and the generated
-   password (format `xxxx-xxxx-xxxx-xxxx`). Never enter your real Apple ID password here.
+1. Set `ADMIN_PASSWORD` to a strong password and `ADMIN_SECRET` to
+   `openssl rand -base64 24`.
+2. Go to `https://YOUR-DOMAIN/admin/login`, sign in, and you'll see every order with its
+   shipping address and one-click supplier links.
 
-## 7. Deploy
+---
 
-1. Push this repo to GitHub (already done if you're reading this from the repo) and import it
-   into Vercel.
-2. Add every env var from `.env.example` in **Project Settings → Environment Variables**.
-3. Deploy. Then run `npx prisma db push` once (locally, pointed at the production
-   `DATABASE_URL`, or via a one-off Vercel deployment build step) to create the tables.
-4. Visit your deployed URL, sign in with Google or Microsoft, and connect the remaining
-   accounts from **Settings**.
+## Adding products
 
-### Reminders & push notifications
+Products live in **`src/data/products.ts`**. To add one:
 
-`vercel.json` already defines a cron job (`/api/cron/reminders`, every 5 minutes) — Vercel
-picks it up automatically on deploy, no extra setup. If you set `CRON_SECRET`, the route
-only accepts requests carrying it; Vercel's cron runner sends it automatically once you set
-`CRON_SECRET` as a Vercel **Cron Job Secret** in Project Settings → Cron Jobs (or simply as a
-regular env var — the route checks `Authorization: Bearer $CRON_SECRET`).
+1. Put its images in `public/products/<slug>/` (e.g. `1.jpg`, `2.jpg`).
+2. Add an entry to the `products` array with title, price (in **cents**), images,
+   highlights, etc.
+3. Put the **private supplier link** in `sourceUrl` — it's shown only in `/admin`,
+   never to customers.
 
-## 8. Install to your Home Screen
+The placeholder demo products and the `scripts/gen-placeholders.js` helper can be
+deleted once you've added real items.
 
-Once deployed (HTTPS is required for both PWA install and push notifications):
-
-- **iOS**: open the site in Safari → Share → **Add to Home Screen**.
-- **Android**: open in Chrome → menu → **Install app** (or you'll see an automatic install
-  banner).
-- **Desktop**: Chrome/Edge show an install icon in the address bar.
-
-The first time you open the installed app, allow the notification permission prompt so
-task reminders can reach you.
+> Just share supplier product links and the catalog entries (localised images + rewritten
+> copy) can be filled in for you.
 
 ## Local development
 
 ```bash
 npm install
-cp .env.example .env
-# fill in at least DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL=http://localhost:3000,
-# APPLE_MAIL_ENCRYPTION_KEY — the rest can be added incrementally.
-npx prisma db push
-npm run dev
+cp .env.example .env   # fill in what you have
+npm run db:push        # once DATABASE_URL is set
+npm run dev            # http://localhost:3000
 ```
 
-Note: OAuth redirect URIs must match exactly, so for local development you'll want a
-second Google/Azure OAuth client (or additional redirect URIs) pointing at
-`http://localhost:3000/...` instead of your production domain.
+## Test the full flow
 
-## What each mode shows
-
-- **Personal mode**: Google Calendar, Gmail, and Apple/iCloud Mail.
-- **Work mode**: Outlook Calendar and Outlook Mail (Microsoft/Graph).
-
-Tasks and budget entries are tagged by mode and are otherwise the same feature set in
-both — switch modes from the pill control in the top bar / sidebar.
+- Use Stripe **test mode** keys and card `4242 4242 4242 4242` (any future date / CVC).
+- Use PayPal **sandbox** buyer credentials.
+- Complete a test purchase → confirm the Telegram ping and the order in `/admin`.
