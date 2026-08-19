@@ -1,4 +1,4 @@
-const CACHE_NAME = 'easy-shell-v1';
+const CACHE_NAME = 'trademate-shell-v1';
 const APP_SHELL = ['/dashboard', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
@@ -35,14 +35,14 @@ self.addEventListener('fetch', (event) => {
 
 self.addEventListener('push', (event) => {
   if (!event.data) return;
-  let payload = { title: 'Easy', body: 'You have a notification.' };
+  let payload = { title: 'TradeMate', body: 'You have a notification.' };
   try {
     payload = event.data.json();
   } catch {
     payload.body = event.data.text();
   }
   event.waitUntil(
-    self.registration.showNotification(payload.title || 'Easy', {
+    self.registration.showNotification(payload.title || 'TradeMate', {
       body: payload.body,
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',

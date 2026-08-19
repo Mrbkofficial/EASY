@@ -1,13 +1,13 @@
 {
-  "name": "Easy — Personal Assistant",
-  "short_name": "Easy",
-  "description": "Tasks, reminders, calendar, mail and budget in one place.",
+  "name": "TradeMate — Irish Trades Job Manager",
+  "short_name": "TradeMate",
+  "description": "Jobs, quotes, invoicing, SEAI grant documentation and WhatsApp quotes for Irish trades.",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0a0a0d",
-  "theme_color": "#0a0a0d",
+  "background_color": "#090b0c",
+  "theme_color": "#0d9488",
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },

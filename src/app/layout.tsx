@@ -3,13 +3,14 @@ import './globals.css';
 import Providers from '@/components/Providers';
 
 export const metadata: Metadata = {
-  title: 'Easy — Personal Assistant',
-  description: 'Tasks, reminders, calendar, mail and budget — all in one place.',
+  title: 'TradeMate — Irish Trades Job Manager',
+  description:
+    'Jobs, quotes, invoicing, SEAI grant documentation and WhatsApp quotes for Irish trades — plumbing, electrical, insulation.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Easy',
+    title: 'TradeMate',
   },
   icons: {
     icon: [
@@ -27,7 +28,7 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#fafafc' },
-    { media: '(prefers-color-scheme: dark)', color: '#0a0a0d' },
+    { media: '(prefers-color-scheme: dark)', color: '#090b0c' },
   ],
 };
 
