@@ -1,4 +1,5 @@
-// Easy — personal assistant app data model.
+// Tradesman — a mobile CRM for Irish trades (plumbing, electrical, insulation)
+// with jobs, quotes, invoicing, SEAI grant workflows and WhatsApp sharing.
 generator client {
   provider = "prisma-client-js"
 }
@@ -16,16 +17,34 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
+  passwordHash  String?
   createdAt     DateTime  @default(now())
 
-  defaultMode Mode @default(PERSONAL)
+  // ---- Business profile (shown on quotes & invoices) ----
+  businessName    String?
+  businessEmail   String?
+  phone           String?
+  address         String?
+  eircode         String?
+  vatNumber       String?
+  taxNumber       String?
+  logoUrl         String?
+  bankDetails     String? @db.Text
+  defaultVatRate  Float   @default(13.5)
+  quotePrefix     String  @default("Q")
+  invoicePrefix   String  @default("INV")
+  nextQuoteSeq    Int     @default(1)
+  nextInvoiceSeq  Int     @default(1)
+  quoteTerms      String? @db.Text
+  invoiceTerms    String? @db.Text
 
-  accounts             Account[]
-  sessions              Session[]
-  tasks                 Task[]
-  budgetEntries          BudgetEntry[]
-  budgetCategories        BudgetCategory[]
-  appleMailAccounts      AppleMailAccount[]
+  accounts               Account[]
+  sessions               Session[]
+  customers              Customer[]
+  jobs                   Job[]
+  quotes                 Quote[]
+  invoices               Invoice[]
+  seaiProjects           SeaiProject[]
   pushSubscriptions      PushSubscription[]
   notificationPreference NotificationPreference?
 }
@@ -65,119 +84,224 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// ---------- Core enums ----------
+// ---------- Trades domain ----------
 
-enum Mode {
-  PERSONAL
-  WORK
+enum Trade {
+  PLUMBING
+  ELECTRICAL
+  INSULATION
+  HEATING
+  CARPENTRY
+  ROOFING
+  GENERAL
+  OTHER
 }
 
-enum Priority {
-  LOW
-  MEDIUM
-  HIGH
+enum JobStatus {
+  LEAD
+  QUOTED
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  INVOICED
+  CANCELLED
 }
 
-enum Recurrence {
-  NONE
-  DAILY
-  WEEKLY
-  MONTHLY
-  YEARLY
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  EXPIRED
 }
 
-// ---------- Tasks & Reminders ----------
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
 
-model Task {
-  id          String     @id @default(cuid())
-  userId      String
-  mode        Mode       @default(PERSONAL)
-  title       String
-  notes       String?    @db.Text
-  dueAt       DateTime?
-  allDay      Boolean    @default(false)
-  completed   Boolean    @default(false)
-  completedAt DateTime?
-  priority    Priority   @default(MEDIUM)
-  category    String?
-  color       String?
-  recurrence  Recurrence @default(NONE)
+enum SeaiGrantType {
+  ATTIC_INSULATION
+  CAVITY_WALL_INSULATION
+  INTERNAL_WALL_INSULATION
+  EXTERNAL_WALL_INSULATION
+  HEAT_PUMP
+  SOLAR_PV
+  HEATING_CONTROLS
+  WINDOWS_DOORS
+  OTHER
+}
 
-  // Reminder alerts: minutes-before-due offsets, e.g. [0, 30, 1440]
-  reminderOffsets Int[]  @default([])
-  lastNotifiedAt  DateTime?
-
-  // Optional link to a synced calendar event
-  calendarProvider  String? // "google" | "outlook"
-  calendarEventId   String?
-
+model Customer {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  eircode   String?
+  notes     String?  @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobs     Job[]
+  quotes   Quote[]
+  invoices Invoice[]
 
-  @@index([userId, mode, dueAt])
-  @@index([userId, completed])
+  @@index([userId])
 }
 
-// ---------- Budget ----------
+model Job {
+  id           String    @id @default(cuid())
+  userId       String
+  customerId   String
+  title        String
+  trade        Trade     @default(GENERAL)
+  status       JobStatus @default(LEAD)
+  description  String?   @db.Text
+  address      String?
+  eircode      String?
+  scheduledFor DateTime?
+  notes        String?   @db.Text
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-model BudgetCategory {
-  id          String  @id @default(cuid())
-  userId      String
-  mode        Mode    @default(PERSONAL)
-  name        String
-  color       String  @default("#6366f1")
-  monthlyLimit Decimal? @db.Decimal(12, 2)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customer    Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  quotes      Quote[]
+  invoices    Invoice[]
+  seaiProject SeaiProject?
 
-  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entries BudgetEntry[]
-
-  @@unique([userId, mode, name])
+  @@index([userId])
+  @@index([customerId])
 }
 
-model BudgetEntry {
-  id         String   @id @default(cuid())
+model Quote {
+  id         String      @id @default(cuid())
   userId     String
-  mode       Mode     @default(PERSONAL)
-  amount     Decimal  @db.Decimal(12, 2)
-  currency   String   @default("USD")
-  merchant   String?
-  note       String?
-  date       DateTime @default(now())
-  categoryId String?
-  receiptUrl String?
-  source     String   @default("manual") // "manual" | "receipt"
+  customerId String
+  jobId      String?
+  number     String
+  status     QuoteStatus @default(DRAFT)
+  issueDate  DateTime    @default(now())
+  validUntil DateTime?
+  notes      String?     @db.Text
+  terms      String?     @db.Text
+  shareToken String      @unique
+  subtotal   Float       @default(0)
+  vatTotal   Float       @default(0)
+  total      Float       @default(0)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customer Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  job      Job?        @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  items    QuoteItem[]
+  invoices Invoice[]
 
-  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category BudgetCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-
-  @@index([userId, mode, date])
+  @@index([userId])
 }
 
-// ---------- Apple / iCloud Mail (IMAP) ----------
+model QuoteItem {
+  id          String @id @default(cuid())
+  quoteId     String
+  description String
+  quantity    Float  @default(1)
+  unitPrice   Float  @default(0)
+  vatRate     Float  @default(13.5)
+  position    Int    @default(0)
 
-model AppleMailAccount {
-  id                    String @id @default(cuid())
-  userId                String
-  email                 String
-  encryptedAppPassword  String @db.Text
-  imapHost              String @default("imap.mail.me.com")
-  imapPort              Int    @default(993)
-  smtpHost              String @default("smtp.mail.me.com")
-  smtpPort              Int    @default(587)
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, email])
+  @@index([quoteId])
 }
 
-// ---------- Notifications ----------
+model Invoice {
+  id         String        @id @default(cuid())
+  userId     String
+  customerId String
+  jobId      String?
+  quoteId    String?
+  number     String
+  status     InvoiceStatus @default(DRAFT)
+  issueDate  DateTime      @default(now())
+  dueDate    DateTime?
+  paidDate   DateTime?
+  notes      String?       @db.Text
+  terms      String?       @db.Text
+  shareToken String        @unique
+  subtotal   Float         @default(0)
+  vatTotal   Float         @default(0)
+  total      Float         @default(0)
+  amountPaid Float         @default(0)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customer Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  job      Job?          @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  quote    Quote?        @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  items    InvoiceItem[]
+
+  @@index([userId])
+}
+
+model InvoiceItem {
+  id          String @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Float  @default(1)
+  unitPrice   Float  @default(0)
+  vatRate     Float  @default(13.5)
+  position    Int    @default(0)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+model SeaiProject {
+  id             String        @id @default(cuid())
+  userId         String
+  jobId          String        @unique
+  grantType      SeaiGrantType @default(ATTIC_INSULATION)
+  applicationRef String?
+  berBefore      String?
+  berAfter       String?
+  grantAmount    Float?
+  submitted      Boolean       @default(false)
+  approved       Boolean       @default(false)
+  checklist      Json          @default("[]")
+  notes          String?       @db.Text
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job       Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  documents SeaiDocument[]
+
+  @@index([userId])
+}
+
+model SeaiDocument {
+  id        String   @id @default(cuid())
+  projectId String
+  label     String
+  kind      String   @default("photo")
+  url       String
+  createdAt DateTime @default(now())
+
+  project SeaiProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+// ---------- Push notifications ----------
 
 model PushSubscription {
   id        String   @id @default(cuid())
@@ -194,9 +318,7 @@ model NotificationPreference {
   id                  String  @id @default(cuid())
   userId              String  @unique
   pushEnabled         Boolean @default(true)
-  defaultReminderMins Int     @default(30)
-  quietHoursStart     Int? // hour 0-23
-  quietHoursEnd       Int?
+  invoiceDueReminders Boolean @default(true)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

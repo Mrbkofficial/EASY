@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendPushToUser } from '@/lib/push';
+import { formatCurrency } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,44 +11,35 @@ function isAuthorized(req: NextRequest) {
   return req.headers.get('authorization') === `Bearer ${secret}`;
 }
 
-// Runs every 5 minutes (see vercel.json). Finds tasks whose next reminder offset
-// has just come due and pushes a notification, without re-sending ones already fired.
+// Runs on a schedule (see vercel.json). Flips sent invoices that have passed their
+// due date to OVERDUE and pushes a reminder to the tradesperson who owns them.
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const now = new Date();
-  const tasks = await prisma.task.findMany({
-    where: {
-      completed: false,
-      dueAt: { not: null },
-      reminderOffsets: { isEmpty: false },
-    },
+  const overdue = await prisma.invoice.findMany({
+    where: { status: 'SENT', dueDate: { lt: now } },
+    include: { customer: { select: { name: true } } },
   });
 
-  let sent = 0;
+  let notified = 0;
+  for (const inv of overdue) {
+    await prisma.invoice.update({ where: { id: inv.id }, data: { status: 'OVERDUE' } });
 
-  for (const task of tasks) {
-    if (!task.dueAt) continue;
-    const dueTimes = task.reminderOffsets
-      .map((mins) => new Date(task.dueAt!.getTime() - mins * 60_000))
-      .filter((t) => t <= now)
-      .filter((t) => !task.lastNotifiedAt || t > task.lastNotifiedAt)
-      .sort((a, b) => b.getTime() - a.getTime());
-
-    if (dueTimes.length === 0) continue;
+    const pref = await prisma.notificationPreference.findUnique({ where: { userId: inv.userId } });
+    if (pref && !pref.invoiceDueReminders) continue;
 
     try {
-      await sendPushToUser(task.userId, {
-        title: task.title,
-        body: task.dueAt <= now ? 'Due now' : `Due ${task.dueAt.toLocaleString()}`,
-        url: '/dashboard',
+      await sendPushToUser(inv.userId, {
+        title: 'Invoice overdue',
+        body: `${inv.number} for ${inv.customer.name} (${formatCurrency(inv.total)}) is now overdue.`,
+        url: `/invoices/${inv.id}`,
       });
-      await prisma.task.update({ where: { id: task.id }, data: { lastNotifiedAt: now } });
-      sent += 1;
-    } catch (err) {
-      console.error(`Failed to notify task ${task.id}`, err);
+      notified++;
+    } catch {
+      // VAPID not configured or send failed — status update still stands.
     }
   }
 
-  return NextResponse.json({ ok: true, checked: tasks.length, sent });
+  return NextResponse.json({ ok: true, markedOverdue: overdue.length, notified });
 }

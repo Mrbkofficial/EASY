@@ -18,12 +18,6 @@ const config: Config = {
           DEFAULT: 'rgb(var(--color-accent) / <alpha-value>)',
           fg: 'rgb(var(--color-accent-fg) / <alpha-value>)',
         },
-        work: {
-          DEFAULT: 'rgb(var(--color-work) / <alpha-value>)',
-        },
-        personal: {
-          DEFAULT: 'rgb(var(--color-personal) / <alpha-value>)',
-        },
         success: 'rgb(var(--color-success) / <alpha-value>)',
         warning: 'rgb(var(--color-warning) / <alpha-value>)',
         danger: 'rgb(var(--color-danger) / <alpha-value>)',

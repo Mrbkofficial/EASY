@@ -1,264 +1,155 @@
 'use client';
 
-import { useState } from 'react';
-import useSWR from 'swr';
-import { useSession } from 'next-auth/react';
-import { CheckCircle2, Mail, Moon, Sun, Monitor, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import { useBusiness } from '@/hooks/useData';
 import { Card } from '@/components/ui/Card';
+import { Input, Textarea } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { Input, Label } from '@/components/ui/Input';
-import { useConnections } from '@/hooks/useConnections';
+import { Field, Spinner } from '@/components/ui/Bits';
+import { apiPatch } from '@/lib/client';
 import { useToast } from '@/context/ToastContext';
-import { useTheme } from '@/context/ThemeContext';
-import { cn, initials } from '@/lib/utils';
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { IRISH_VAT_RATES } from '@/lib/money';
 
 export default function SettingsPage() {
-  const { data: session } = useSession();
-  const { connections, mutate } = useConnections();
+  const { business, isLoading, mutate } = useBusiness();
   const { toast } = useToast();
-  const { theme, setTheme } = useTheme();
+  const [saving, setSaving] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+  const [form, setForm] = useState({
+    businessName: '', businessEmail: '', phone: '', address: '', eircode: '',
+    vatNumber: '', taxNumber: '', bankDetails: '', defaultVatRate: '13.5',
+    quotePrefix: 'Q', invoicePrefix: 'INV', quoteTerms: '', invoiceTerms: '', logoUrl: '',
+  });
 
-  const { data: prefData, mutate: mutatePref } = useSWR<{ preference: { pushEnabled: boolean; defaultReminderMins: number } }>(
-    '/api/notification-preference',
-    fetcher
-  );
-
-  const [appleEmail, setAppleEmail] = useState('');
-  const [applePassword, setApplePassword] = useState('');
-  const [connectingApple, setConnectingApple] = useState(false);
-
-  const disconnect = async (provider: 'google' | 'azure-ad') => {
-    await fetch('/api/connections/disconnect', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider }),
-    });
-    toast('Disconnected', 'success');
-    mutate();
-  };
-
-  const connectApple = async () => {
-    setConnectingApple(true);
-    try {
-      const res = await fetch('/api/mail/apple', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: appleEmail.trim(), appPassword: applePassword.trim() }),
+  useEffect(() => {
+    if (business && !hydrated) {
+      setForm({
+        businessName: business.businessName ?? '',
+        businessEmail: business.businessEmail ?? '',
+        phone: business.phone ?? '',
+        address: business.address ?? '',
+        eircode: business.eircode ?? '',
+        vatNumber: business.vatNumber ?? '',
+        taxNumber: business.taxNumber ?? '',
+        bankDetails: business.bankDetails ?? '',
+        defaultVatRate: String(business.defaultVatRate ?? 13.5),
+        quotePrefix: business.quotePrefix ?? 'Q',
+        invoicePrefix: business.invoicePrefix ?? 'INV',
+        quoteTerms: business.quoteTerms ?? '',
+        invoiceTerms: business.invoiceTerms ?? '',
+        logoUrl: business.logoUrl ?? '',
       });
-      const data = await res.json();
-      if (!res.ok) {
-        toast(data.error ?? 'Could not connect Apple Mail', 'error');
-        return;
-      }
-      toast('Apple Mail connected', 'success');
-      setAppleEmail('');
-      setApplePassword('');
-      mutate();
-    } finally {
-      setConnectingApple(false);
+      setHydrated(true);
     }
-  };
+  }, [business, hydrated]);
 
-  const disconnectApple = async () => {
-    await fetch('/api/mail/apple', { method: 'DELETE' });
-    toast('Apple Mail disconnected', 'success');
-    mutate();
-  };
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const updatePref = async (payload: Record<string, unknown>) => {
-    await fetch('/api/notification-preference', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    mutatePref();
-  };
+  async function save() {
+    setSaving(true);
+    try {
+      await apiPatch('/api/business', {
+        ...form,
+        defaultVatRate: parseFloat(form.defaultVatRate) || 13.5,
+      });
+      await mutate();
+      toast('Business profile saved', 'success');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Failed to save', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (isLoading) return <Spinner />;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 pt-6 pb-12 sm:px-8 sm:pt-8">
-      <h1 className="mb-6 text-2xl font-semibold">Settings</h1>
+    <div>
+      <Link href="/more" className="mb-3 inline-flex items-center gap-1 text-sm text-base-muted">
+        <ArrowLeft size={16} /> More
+      </Link>
+      <h1 className="mb-1 text-2xl font-semibold tracking-tight">Business profile</h1>
+      <p className="mb-5 text-sm text-base-muted">This appears on your quotes and invoices.</p>
 
-      <Card className="mb-5 flex items-center gap-3 p-4">
-        {session?.user?.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={session.user.image} alt="" className="h-12 w-12 rounded-full" />
-        ) : (
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-fg">
-            {initials(session?.user?.name)}
-          </div>
-        )}
-        <div>
-          <p className="font-medium">{session?.user?.name}</p>
-          <p className="text-sm text-base-muted">{session?.user?.email}</p>
+      <Card className="mb-5 space-y-3 p-4">
+        <Field label="Business name">
+          <Input value={form.businessName} onChange={set('businessName')} placeholder="O'Brien Plumbing & Heating" />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Phone">
+            <Input value={form.phone} onChange={set('phone')} placeholder="087 123 4567" inputMode="tel" />
+          </Field>
+          <Field label="Email">
+            <Input value={form.businessEmail} onChange={set('businessEmail')} placeholder="info@obrien.ie" inputMode="email" />
+          </Field>
         </div>
+        <Field label="Address">
+          <Input value={form.address} onChange={set('address')} placeholder="Unit 4, Business Park, Galway" />
+        </Field>
+        <Field label="Eircode">
+          <Input value={form.eircode} onChange={set('eircode')} placeholder="H91 XXXX" />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="VAT number">
+            <Input value={form.vatNumber} onChange={set('vatNumber')} placeholder="IE1234567X" />
+          </Field>
+          <Field label="Tax ref (optional)">
+            <Input value={form.taxNumber} onChange={set('taxNumber')} />
+          </Field>
+        </div>
+        <Field label="Logo URL (optional)">
+          <Input value={form.logoUrl} onChange={set('logoUrl')} placeholder="https://…/logo.png" inputMode="url" />
+        </Field>
       </Card>
 
-      <h2 className="mb-3 text-sm font-semibold text-base-muted">Connected accounts</h2>
-      <Card className="mb-5 divide-y divide-base-border">
-        <ConnectionRow
-          label="Google (Gmail + Calendar)"
-          hint="Used in Personal mode"
-          connected={connections.google}
-          onConnect={() => (window.location.href = '/api/connections/google/authorize')}
-          onDisconnect={() => disconnect('google')}
-        />
-        <ConnectionRow
-          label="Microsoft (Outlook Mail + Calendar)"
-          hint="Used in Work mode"
-          connected={connections.microsoft}
-          onConnect={() => (window.location.href = '/api/connections/microsoft/authorize')}
-          onDisconnect={() => disconnect('azure-ad')}
-        />
-        <div className="p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Apple / iCloud Mail</p>
-              <p className="text-xs text-base-muted">Used in Personal mode · via IMAP app-specific password</p>
-            </div>
-            {connections.apple && <CheckCircle2 size={18} className="text-success" />}
-          </div>
-          {connections.apple ? (
-            <div className="flex items-center justify-between rounded-xl bg-base-surface2 px-3 py-2 text-sm">
-              <span className="flex items-center gap-2">
-                <Mail size={14} />
-                {connections.appleEmail}
-              </span>
-              <Button variant="ghost" size="icon" onClick={disconnectApple}>
-                <Trash2 size={14} />
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Input
-                type="email"
-                placeholder="you@icloud.com"
-                value={appleEmail}
-                onChange={(e) => setAppleEmail(e.target.value)}
-              />
-              <Input
-                type="password"
-                placeholder="xxxx-xxxx-xxxx-xxxx (app-specific password)"
-                value={applePassword}
-                onChange={(e) => setApplePassword(e.target.value)}
-              />
-              <Button
-                size="sm"
-                onClick={connectApple}
-                disabled={connectingApple || !appleEmail || !applePassword}
-                className="w-full"
-              >
-                {connectingApple ? 'Connecting…' : 'Connect Apple Mail'}
-              </Button>
-              <p className="text-xs text-base-muted">
-                Generate one at{' '}
-                <span className="font-medium">appleid.apple.com → Sign-In and Security → App-Specific Passwords</span>.
-                Never use your main Apple ID password.
-              </p>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      <h2 className="mb-3 text-sm font-semibold text-base-muted">Notifications</h2>
-      <Card className="mb-5 space-y-4 p-4">
-        <ToggleRow
-          label="Push notifications"
-          checked={prefData?.preference.pushEnabled ?? true}
-          onChange={(v) => updatePref({ pushEnabled: v })}
-        />
-        <div>
-          <Label>Default reminder</Label>
+      <h2 id="invoicing" className="mb-2 text-sm font-semibold text-base-muted">Invoicing</h2>
+      <Card className="mb-5 space-y-3 p-4">
+        <Field label="Default VAT rate">
           <select
-            className="w-full rounded-xl border border-base-border bg-base-surface px-3.5 py-2.5 text-sm"
-            value={prefData?.preference.defaultReminderMins ?? 30}
-            onChange={(e) => updatePref({ defaultReminderMins: Number(e.target.value) })}
+            className="w-full appearance-none rounded-xl border border-base-border bg-base-surface px-3.5 py-2.5 text-sm"
+            value={form.defaultVatRate}
+            onChange={set('defaultVatRate')}
           >
-            <option value={0}>At due time</option>
-            <option value={10}>10 minutes before</option>
-            <option value={30}>30 minutes before</option>
-            <option value={60}>1 hour before</option>
-            <option value={1440}>1 day before</option>
+            {IRISH_VAT_RATES.map((r) => (
+              <option key={r.rate} value={r.rate}>
+                {r.label}
+              </option>
+            ))}
           </select>
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Quote prefix">
+            <Input value={form.quotePrefix} onChange={set('quotePrefix')} placeholder="Q" />
+          </Field>
+          <Field label="Invoice prefix">
+            <Input value={form.invoicePrefix} onChange={set('invoicePrefix')} placeholder="INV" />
+          </Field>
         </div>
+        <Field label="Bank / payment details (shown on invoices)">
+          <Textarea
+            rows={3}
+            value={form.bankDetails}
+            onChange={set('bankDetails')}
+            placeholder={'Bank: AIB\nIBAN: IE00 AIBK 0000 0000 0000 00\nBIC: AIBKIE2D'}
+          />
+        </Field>
+        <Field label="Default quote terms">
+          <Textarea rows={2} value={form.quoteTerms} onChange={set('quoteTerms')} placeholder="Quote valid for 30 days. 50% deposit required to book." />
+        </Field>
+        <Field label="Default invoice terms">
+          <Textarea rows={2} value={form.invoiceTerms} onChange={set('invoiceTerms')} placeholder="Payment due within 30 days." />
+        </Field>
       </Card>
 
-      <h2 className="mb-3 text-sm font-semibold text-base-muted">Appearance</h2>
-      <Card className="mb-5 p-4">
-        <div className="flex gap-2">
-          {(
-            [
-              ['light', Sun, 'Light'],
-              ['system', Monitor, 'System'],
-              ['dark', Moon, 'Dark'],
-            ] as const
-          ).map(([t, Icon, label]) => (
-            <button
-              key={t}
-              onClick={() => setTheme(t)}
-              className={cn(
-                'flex flex-1 flex-col items-center gap-1.5 rounded-xl border py-3 text-xs font-medium transition-colors',
-                theme === t ? 'border-accent bg-accent/10 text-accent' : 'border-base-border text-base-muted'
-              )}
-            >
-              <Icon size={18} />
-              {label}
-            </button>
-          ))}
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-function ConnectionRow({
-  label,
-  hint,
-  connected,
-  onConnect,
-  onDisconnect,
-}: {
-  label: string;
-  hint: string;
-  connected: boolean;
-  onConnect: () => void;
-  onDisconnect: () => void;
-}) {
-  return (
-    <div className="flex items-center justify-between p-4">
-      <div>
-        <p className="text-sm font-medium">{label}</p>
-        <p className="text-xs text-base-muted">{hint}</p>
+      <div className="sticky bottom-24 sm:bottom-4">
+        <Button className="w-full" onClick={save} disabled={saving}>
+          {saving && <Loader2 size={16} className="animate-spin" />}
+          Save profile
+        </Button>
       </div>
-      {connected ? (
-        <Button variant="outline" size="sm" onClick={onDisconnect}>
-          Disconnect
-        </Button>
-      ) : (
-        <Button size="sm" onClick={onConnect}>
-          Connect
-        </Button>
-      )}
-    </div>
-  );
-}
-
-function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm font-medium">{label}</span>
-      <button
-        onClick={() => onChange(!checked)}
-        className={cn('h-6 w-11 rounded-full transition-colors', checked ? 'bg-accent' : 'bg-base-surface2')}
-      >
-        <span
-          className={cn(
-            'block h-5 w-5 translate-x-0.5 rounded-full bg-white shadow transition-transform',
-            checked && 'translate-x-[22px]'
-          )}
-        />
-      </button>
     </div>
   );
 }

@@ -5,9 +5,7 @@ import { requireUserId, AuthError } from '@/lib/session';
 
 const schema = z.object({
   pushEnabled: z.boolean().optional(),
-  defaultReminderMins: z.number().int().min(0).optional(),
-  quietHoursStart: z.number().int().min(0).max(23).nullable().optional(),
-  quietHoursEnd: z.number().int().min(0).max(23).nullable().optional(),
+  invoiceDueReminders: z.boolean().optional(),
 });
 
 export async function GET() {
