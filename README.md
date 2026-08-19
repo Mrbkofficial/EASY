@@ -30,7 +30,27 @@ invoices, document SEAI grant work, and share quotes to customers over WhatsApp
 - NextAuth (email/password by default, optional Google)
 - Vercel Blob (photo/document storage), Web Push (VAPID)
 
-## Getting started
+## Live demo deployment (get a shareable URL)
+
+The app is full-stack (Next.js + Postgres), so a public demo needs a host. The
+quickest is **Vercel + Postgres** (free tier), ~5 minutes:
+
+1. Go to **[vercel.com/new](https://vercel.com/new)** and import `Mrbkofficial/EASY`.
+   In the project's **Settings → Git**, set the Production Branch to
+   `claude/irish-trades-contractor-app-5qevdr` (or merge it to `main` first).
+2. In the project, open **Storage → Create → Postgres** and link it — Vercel
+   injects `DATABASE_URL` automatically.
+3. Add these Environment Variables:
+   - `NEXTAUTH_SECRET` — any random string (`openssl rand -base64 32`)
+   - `NEXTAUTH_URL` — your deployment URL, e.g. `https://your-app.vercel.app`
+   - `ENABLE_DEMO_SEED` — `1` (lets you load sample data)
+4. **Deploy.** The build pushes the schema automatically.
+5. Visit **`/demo`** on your deployed URL once — it seeds a sample business and
+   prints the login (`demo@obrienplumbing.ie` / `demo1234`). Then use the app.
+
+Remove `ENABLE_DEMO_SEED` (or set it to `0`) once you're done demoing.
+
+## Getting started (local)
 
 1. `npm install`
 2. Copy `.env.example` → `.env` and set at least `DATABASE_URL`,
