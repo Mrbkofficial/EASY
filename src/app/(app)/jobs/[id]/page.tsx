@@ -90,9 +90,7 @@ export default function JobDetailPage() {
 
       <Card className="mb-5 divide-y divide-base-border">
         <div className="flex items-center justify-between px-4 py-3">
-          <span className="flex items-center gap-2 text-sm text-base-muted">
-            <StatusBadge {...JOB_STATUS[job.status]} /> Status
-          </span>
+          <span className="text-sm text-base-muted">Status</span>
           <Select
             className="w-auto text-xs"
             value={job.status}

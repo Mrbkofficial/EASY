@@ -50,7 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <UserMenu />
       </aside>
 
-      <div className="flex min-h-dvh flex-1 flex-col">
+      <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
         {/* Mobile top bar */}
         <header className="safe-top sticky top-0 z-30 flex items-center justify-between border-b border-base-border bg-base-bg/80 px-4 py-3 backdrop-blur-lg sm:hidden">
           <div className="flex items-center gap-2">

@@ -28,20 +28,20 @@ export default function DashboardPage() {
         <div className="space-y-5">
           {/* Money row */}
           <div className="grid grid-cols-2 gap-3">
-            <Card className="p-4">
+            <Card className="min-w-0 p-4">
               <div className="mb-1 flex items-center gap-1.5 text-xs text-base-muted">
-                <TrendingUp size={14} /> Paid this month
+                <TrendingUp size={14} className="shrink-0" /> <span className="truncate">Paid this month</span>
               </div>
-              <p className="text-2xl font-semibold text-success">{formatCurrency(stats.paidThisMonth)}</p>
+              <p className="truncate text-2xl font-semibold text-success">{formatCurrency(stats.paidThisMonth)}</p>
             </Card>
-            <Card className="p-4">
+            <Card className="min-w-0 p-4">
               <div className="mb-1 flex items-center gap-1.5 text-xs text-base-muted">
-                <ReceiptEuro size={14} /> Outstanding
+                <ReceiptEuro size={14} className="shrink-0" /> <span className="truncate">Outstanding</span>
               </div>
-              <p className="text-2xl font-semibold">{formatCurrency(stats.outstanding)}</p>
+              <p className="truncate text-2xl font-semibold">{formatCurrency(stats.outstanding)}</p>
               {stats.overdue > 0 && (
-                <p className="mt-0.5 flex items-center gap-1 text-xs text-danger">
-                  <AlertTriangle size={12} /> {formatCurrency(stats.overdue)} overdue
+                <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-danger">
+                  <AlertTriangle size={12} className="shrink-0" /> {formatCurrency(stats.overdue)} overdue
                 </p>
               )}
             </Card>
@@ -110,11 +110,11 @@ function StatTile({
   label: string;
 }) {
   return (
-    <Link href={href}>
-      <Card className="flex flex-col items-center gap-1 px-1 py-3 text-center transition hover:bg-base-surface2">
+    <Link href={href} className="min-w-0">
+      <Card className="flex min-w-0 flex-col items-center gap-1 px-1 py-3 text-center transition hover:bg-base-surface2">
         <Icon size={18} className="text-accent" />
         <span className="text-lg font-semibold leading-none">{value}</span>
-        <span className="text-[10px] leading-tight text-base-muted">{label}</span>
+        <span className="w-full truncate text-[10px] leading-tight text-base-muted">{label}</span>
       </Card>
     </Link>
   );
